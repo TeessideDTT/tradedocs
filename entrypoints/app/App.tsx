@@ -2,6 +2,7 @@ import React from 'react';
 import { HashRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import Templates from './Templates';
 import Editor from './Editor';
+import InvoiceGenerator from './InvoiceGenerator';
 import MyDocuments from './MyDocuments';
 import { Button } from '@/components/ui/button';
 import { FileText, LayoutGrid, Settings, Plus } from 'lucide-react';
@@ -32,7 +33,7 @@ const Dashboard = () => {
           </div>
           <h3 className="text-2xl font-semibold mb-3">Create New</h3>
           <p className="text-gray-500 mb-8 flex-1">Start creating a new trade document from scratch with our intuitive editor.</p>
-          <Link to="/editor">
+          <Link to="/generator">
             <Button className="w-full">Create Invoice</Button>
           </Link>
         </div>
@@ -64,9 +65,9 @@ function App() {
                 <span className="text-2xl font-bold tracking-tight">TradeDocs</span>
               </Link>
               <div className="hidden md:flex gap-6 text-sm font-medium">
-                <Link to="/templates" className="transition-colors hover:text-blue-600 text-gray-500">Templates</Link>
-                <Link to="/editor" className="transition-colors hover:text-blue-600 text-gray-500">Editor</Link>
-                <Link to="/documents" className="transition-colors hover:text-blue-600 text-gray-500">My Documents</Link>
+                <Link to="/templates" className="transition-colors hover:text-blue-600 text-gray-500">Dashboard</Link>
+                <Link to="/generator" className="transition-colors hover:text-blue-600 text-gray-500">Generator</Link>
+                <Link to="/documents" className="transition-colors hover:text-blue-600 text-gray-500">My Templates</Link>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -81,6 +82,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/templates" element={<Templates />} />
+            <Route path="/generator" element={<InvoiceGenerator />} />
             <Route path="/editor" element={<Editor />} />
             <Route path="/documents" element={<MyDocuments />} />
           </Routes>
@@ -89,7 +91,7 @@ function App() {
         <footer className="border-t py-12 bg-white">
           <div className="container mx-auto px-8 text-center">
             <p className="text-sm text-gray-500">
-              &copy; 2024 TradeDocs. All documents generated are UN/CEFACT CII and PDF/A-3 compliant.
+              &copy; 2026 TradeDocs. All documents generated are UN/CEFACT CII and PDF/A-3 compliant.
             </p>
           </div>
         </footer>

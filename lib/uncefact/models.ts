@@ -41,6 +41,14 @@ export interface Invoice {
   };
 }
 
+export interface CustomTemplate {
+  id: string;
+  name: string;
+  createdAt: number;
+  layoutId: string;
+  invoiceData: Partial<Invoice>; // Store partial data, we will re-hydrate dates on load
+}
+
 export const DEFAULT_INVOICE: Invoice = {
   id: 'INV-001',
   issueDate: new Date(),

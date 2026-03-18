@@ -37,13 +37,13 @@ function App() {
               <LayoutGrid className="w-4 h-4" />
             </div>
             <div>
-              <div className="font-semibold text-xs text-black">Templates</div>
+              <div className="font-semibold text-xs text-black">Dashboard</div>
               <div className="text-[10px] text-gray-500">Pick a starting point</div>
             </div>
           </button>
 
           <button 
-            onClick={() => openApp('/editor')}
+            onClick={() => openApp('/generator')}
             className="flex items-center gap-3 w-full p-3 rounded-xl border bg-white hover:bg-gray-50 hover:border-blue-200 transition-all text-left group shadow-sm"
           >
             <div className="p-2 rounded-lg bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
@@ -63,7 +63,7 @@ function App() {
               <Settings className="w-4 h-4" />
             </div>
             <div>
-              <div className="font-semibold text-xs text-black">My Documents</div>
+              <div className="font-semibold text-xs text-black">My Templates</div>
               <div className="text-[10px] text-gray-500">Manage saved files</div>
             </div>
           </button>

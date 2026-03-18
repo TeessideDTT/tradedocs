@@ -75,39 +75,44 @@ export async function generateInvoicePdf(
   return finalPdfBytes;
 }
 
-export async function extractInvoiceDataFromPdf(fileBuffer: ArrayBuffer): Promise<Partial<Invoice> | null> {
+export async function extractInvoiceDataFromPdf(fileBuffer: ArrayBuffer): Promise<Partial<Invoice>> {
+  let pdf;
   try {
     const uint8Array = new Uint8Array(fileBuffer);
-    const pdf = await getDocumentProxy(uint8Array);
-    
-    // PDF/A-3 stores files in the Attachments (EmbeddedFiles) tree
-    const attachments = await pdf.getAttachments();
-    
-    if (!attachments) {
-       console.warn("No attachments found in PDF");
-       return null;
-    }
-    
-    // Look for any file ending in .jsonld or metadata.jsonld
-    const jsonFileName = Object.keys(attachments).find(name => name.endsWith('.jsonld') || name.endsWith('.json'));
-    
-    if (!jsonFileName) {
-        console.warn("No JSON-LD metadata found in attachments.");
-        return null;
-    }
-    
+    pdf = await getDocumentProxy(uint8Array);
+  } catch (error) {
+    throw new Error("Invalid or corrupted PDF file.");
+  }
+  
+  // PDF/A-3 stores files in the Attachments (EmbeddedFiles) tree
+  const attachments = await pdf.getAttachments();
+  
+  if (!attachments || Object.keys(attachments).length === 0) {
+     throw new Error("No attachments found in this PDF. Please ensure it is a valid PDF/A-3 document with embedded metadata.");
+  }
+  
+  // Look for any file ending in .jsonld or metadata.jsonld
+  const jsonFileName = Object.keys(attachments).find(name => name.endsWith('.jsonld') || name.endsWith('.json'));
+  
+  if (!jsonFileName) {
+      throw new Error("No JSON-LD metadata attachment found. Ensure the document was exported with TradeDocs or contains standard 'metadata.jsonld'.");
+  }
+  
+  try {
     const attachment = attachments[jsonFileName];
     const decoder = new TextDecoder();
     const jsonLdString = decoder.decode(attachment.content);
 
-    if (jsonLdString) {
-        const parsed = JSON.parse(jsonLdString);
-        return jsonLdToInvoice(parsed);
+    if (!jsonLdString) {
+      throw new Error("The attached JSON-LD file is empty.");
     }
-    
-    return null;
+
+    const parsed = JSON.parse(jsonLdString);
+    return jsonLdToInvoice(parsed);
   } catch (error) {
-    console.error("Failed to extract data from PDF:", error);
-    return null;
+    if (error instanceof SyntaxError) {
+      throw new Error("The embedded JSON-LD metadata is malformed and could not be parsed.");
+    }
+    throw new Error(`Failed to extract invoice data: ${(error as Error).message}`);
   }
 }

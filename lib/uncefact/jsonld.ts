@@ -71,6 +71,50 @@ export function invoiceToJsonLd(invoice: Invoice): string {
  * Converts a parsed Schema.org JSON-LD object back into the internal Invoice model (JSON).
  */
 export function jsonLdToInvoice(parsed: any): Partial<Invoice> {
+  // Validate that this is actually an Invoice JSON-LD document
+  if (
+    !parsed || 
+    typeof parsed !== 'object' || 
+    parsed['@context'] !== 'https://schema.org' || 
+    parsed['@type'] !== 'Invoice'
+  ) {
+    throw new Error("Invalid JSON-LD document structure for the invoice. Missing required Schema.org context or type.");
+  }
+
+  // Basic validation for required fields
+  const missingFields: string[] = [];
+
+  // Core UN/CEFACT requirements mapped to our JSON-LD structure
+  if (!parsed.identifier) missingFields.push("Invoice Number (identifier)");
+  if (!parsed.paymentDueDate) missingFields.push("Issue Date (paymentDueDate)");
+  if (!parsed.currency && !parsed.totalPaymentDue?.priceCurrency) missingFields.push("Currency (currency or totalPaymentDue.priceCurrency)");
+  
+  if (!parsed.provider?.name) missingFields.push("Seller Name (provider.name)");
+  if (!parsed.provider?.address?.addressCountry) missingFields.push("Seller Country Code (provider.address.addressCountry)");
+  
+  if (!parsed.customer?.name) missingFields.push("Buyer Name (customer.name)");
+  if (!parsed.customer?.address?.addressCountry) missingFields.push("Buyer Country Code (customer.address.addressCountry)");
+
+  if (!parsed.referencesOrder || !Array.isArray(parsed.referencesOrder) || parsed.referencesOrder.length === 0) {
+     missingFields.push("Line Items (referencesOrder)");
+  } else {
+     // Validate that at least the first line item has mandatory fields
+     const firstLine = parsed.referencesOrder[0];
+     if (!firstLine.orderedItem?.name) missingFields.push("Line Item Description (orderedItem.name)");
+     if (firstLine.price === undefined) missingFields.push("Line Item Price (price)");
+     if (firstLine.orderQuantity === undefined) missingFields.push("Line Item Quantity (orderQuantity)");
+  }
+
+  if (!parsed.totals || parsed.totals.duePayableAmount === undefined) {
+      if (!parsed.totalPaymentDue?.price) {
+          missingFields.push("Total Amount (totals.duePayableAmount or totalPaymentDue.price)");
+      }
+  }
+
+  if (missingFields.length > 0) {
+    throw new Error(`Invalid UN/CEFACT CII document structure. Missing mandatory fields:\n- ${missingFields.join('\n- ')}`);
+  }
+
   return {
     id: parsed.identifier || `INV-${Date.now()}`,
     issueDate: parsed.paymentDueDate ? new Date(parsed.paymentDueDate) : new Date(),
@@ -103,15 +147,15 @@ export function jsonLdToInvoice(parsed: any): Partial<Invoice> {
       unitCode: item.orderedItem?.unitCode || 'C62',
       quantity: item.orderQuantity || 1,
       unitPrice: item.price || 0,
-      amount: item.amount || ((item.orderQuantity || 1) * (item.price || 0)),
-      taxRate: item.taxRate || 0,
+      amount: item.amount !== undefined ? item.amount : ((item.orderQuantity || 1) * (item.price || 0)),
+      taxRate: item.taxRate !== undefined ? item.taxRate : 0,
       taxCategoryCode: item.taxCategoryCode || 'S',
     })),
     totals: parsed.totals ? {
-      lineTotalAmount: parsed.totals.lineTotalAmount || 0,
-      taxTotalAmount: parsed.totals.taxTotalAmount || 0,
-      grandTotalAmount: parsed.totals.grandTotalAmount || 0,
-      duePayableAmount: parsed.totals.duePayableAmount || 0,
+      lineTotalAmount: parsed.totals.lineTotalAmount !== undefined ? parsed.totals.lineTotalAmount : 0,
+      taxTotalAmount: parsed.totals.taxTotalAmount !== undefined ? parsed.totals.taxTotalAmount : 0,
+      grandTotalAmount: parsed.totals.grandTotalAmount !== undefined ? parsed.totals.grandTotalAmount : 0,
+      duePayableAmount: parsed.totals.duePayableAmount !== undefined ? parsed.totals.duePayableAmount : 0,
     } : undefined
   };
 }
