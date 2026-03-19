@@ -71,11 +71,19 @@ export async function generateInvoicePdf(
     modificationDate: new Date(),
   });
 
+  const tradedocsMeta = JSON.stringify({ layoutId: layout.id });
+  await pdfDoc.attach(new TextEncoder().encode(tradedocsMeta), 'tradedocs.json', {
+    mimeType: 'application/json',
+    description: 'TradeDocs App Metadata',
+    creationDate: new Date(),
+    modificationDate: new Date(),
+  });
+
   const finalPdfBytes = await pdfDoc.save();
   return finalPdfBytes;
 }
 
-export async function extractInvoiceDataFromPdf(fileBuffer: ArrayBuffer): Promise<Partial<Invoice>> {
+export async function extractInvoiceDataFromPdf(fileBuffer: ArrayBuffer): Promise<{ invoice: Partial<Invoice>, layoutId?: string }> {
   let pdf;
   try {
     const uint8Array = new Uint8Array(fileBuffer);
@@ -91,11 +99,22 @@ export async function extractInvoiceDataFromPdf(fileBuffer: ArrayBuffer): Promis
      throw new Error("No attachments found in this PDF. Please ensure it is a valid PDF/A-3 document with embedded metadata.");
   }
   
-  // Look for any file ending in .jsonld or metadata.jsonld
-  const jsonFileName = Object.keys(attachments).find(name => name.endsWith('.jsonld') || name.endsWith('.json'));
+  // Look for any file ending in .jsonld or metadata.jsonld (exclude tradedocs.json)
+  const jsonFileName = Object.keys(attachments).find(name => name.endsWith('.jsonld') || (name.endsWith('.json') && name !== 'tradedocs.json'));
   
   if (!jsonFileName) {
       throw new Error("No JSON-LD metadata attachment found. Ensure the document was exported with TradeDocs or contains standard 'metadata.jsonld'.");
+  }
+
+  let layoutId: string | undefined;
+  if (attachments['tradedocs.json']) {
+    try {
+      const tdMetaStr = new TextDecoder().decode(attachments['tradedocs.json'].content);
+      const parsed = JSON.parse(tdMetaStr);
+      layoutId = parsed.layoutId;
+    } catch (e) {
+      console.warn("Could not parse tradedocs.json metadata", e);
+    }
   }
   
   try {
@@ -108,7 +127,7 @@ export async function extractInvoiceDataFromPdf(fileBuffer: ArrayBuffer): Promis
     }
 
     const parsed = JSON.parse(jsonLdString);
-    return jsonLdToInvoice(parsed);
+    return { invoice: jsonLdToInvoice(parsed), layoutId };
   } catch (error) {
     if (error instanceof SyntaxError) {
       throw new Error("The embedded JSON-LD metadata is malformed and could not be parsed.");

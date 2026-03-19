@@ -17,11 +17,16 @@ export default function Templates() {
 
     try {
       setIsExtracting(true);
-      const arrayBuffer = await file.arrayBuffer();
-      const extractedData = await extractInvoiceDataFromPdf(arrayBuffer);
+      const buffer = await file.arrayBuffer();
+      const extractedData = await extractInvoiceDataFromPdf(buffer);
       
-      // Navigate to editor with the extracted data
-      navigate('/generator', { state: { importedData: extractedData } });
+      // Navigate to editor with the extracted data and the layout ID if it was preserved
+      navigate('/generator', { 
+        state: { 
+          importedData: extractedData.invoice,
+          layoutId: extractedData.layoutId
+        } 
+      });
     } catch (error) {
       console.error(error);
       alert((error as Error).message || "Failed to parse the PDF file.");

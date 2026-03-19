@@ -80,9 +80,16 @@ export function MinimalLayout({ invoice, layout, isEditing, handlers }: LayoutPr
                   <tr key={index}>
                      <td className="py-4">
                         {isEditing ? (
-                           <Input value={line.name} onChange={e => handleLineChange(index, 'name', e.target.value)} className="border-gray-200" />
-                        ) : <span className="font-medium">{line.name}</span>}
-                        <div className="text-xs text-gray-400 mt-1">{line.hsCode ? `HS: ${line.hsCode}` : ''}</div>
+                           <div className="space-y-1">
+                              <Input value={line.name} onChange={e => handleLineChange(index, 'name', e.target.value)} className="border-gray-200" placeholder="Item name" />
+                              <Input value={line.hsCode || ''} onChange={e => handleLineChange(index, 'hsCode', e.target.value)} className="text-xs h-7 w-32 border-gray-200" placeholder="HS Code" />
+                           </div>
+                        ) : (
+                           <div>
+                              <span className="font-medium">{line.name}</span>
+                              {line.hsCode && <div className="text-xs text-gray-400 mt-1">HS: {line.hsCode}</div>}
+                           </div>
+                        )}
                      </td>
                      <td className="py-4 text-center text-gray-500">
                         {isEditing ? <Input type="number" value={line.quantity} onChange={e => handleLineChange(index, 'quantity', e.target.value)} className="w-16 text-center mx-auto border-gray-200" /> : line.quantity}
