@@ -42,8 +42,8 @@ export default function Templates() {
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Templates</h1>
-          <p className="text-gray-500">Choose a starting point for your invoice.</p>
+          <h1 className="text-2xl font-bold">Templates</h1>
+          <p className="text-sm text-gray-500 mt-1">Choose a starting point for your invoice.</p>
         </div>
         <Button onClick={() => navigate('/generator')}>
           <Plus className="w-4 h-4 mr-2" />
@@ -58,8 +58,8 @@ export default function Templates() {
               <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
                 <LayoutGrid className="w-6 h-6" />
               </div>
-              <CardTitle>{layout.name}</CardTitle>
-              <CardDescription>{layout.description}</CardDescription>
+              <CardTitle className="text-lg">{layout.name}</CardTitle>
+              <CardDescription className="text-xs">{layout.description}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-sm space-y-1">
@@ -91,8 +91,8 @@ export default function Templates() {
           <div className="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-6">
             <Upload className="w-8 h-8" />
           </div>
-          <h2 className="text-2xl font-bold mb-4">Import Existing Invoice</h2>
-          <p className="text-gray-500 mb-8">
+          <h2 className="text-xl font-bold mb-3">Import Existing Invoice</h2>
+          <p className="text-sm text-gray-500 mb-8">
             Have a compliant PDF/A-3 invoice? Upload it here to extract the structured data and use it as a starting point.
           </p>
           

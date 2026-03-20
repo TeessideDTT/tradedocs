@@ -14,7 +14,7 @@ function App() {
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-xs">T</div>
           <div>
-            <h1 className="text-lg font-bold tracking-tight leading-none">TradeDocs</h1>
+            <h1 className="text-lg font-bold tracking-tight leading-none">TDO Builder</h1>
             <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">UN/CEFACT Compliant</p>
           </div>
         </div>

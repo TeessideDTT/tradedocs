@@ -134,8 +134,8 @@ export default function Editor() {
     <div className="p-8 max-w-5xl mx-auto pb-24 relative">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold">{isEditing ? "Edit Template" : templateName}</h1>
-          <p className="text-gray-500">{isEditing ? "Editing custom template" : "Viewing custom template"}</p>
+          <h1 className="text-2xl font-bold">{isEditing ? "Edit Template" : templateName}</h1>
+          <p className="text-sm text-gray-500 mt-1">{isEditing ? "Editing custom template" : "Viewing custom template"}</p>
         </div>
         <div className="flex gap-4 items-center">
           <Button variant="outline" onClick={() => setIsEditing(!isEditing)} disabled={isSaving}>

@@ -11,8 +11,8 @@ const Dashboard = () => {
   return (
     <div className="p-8">
       <div className="mb-12">
-        <h1 className="text-4xl font-bold mb-2">Welcome to TradeDocs</h1>
-        <p className="text-xl text-gray-500">Create UN/CEFACT compliant invoices with embedded data.</p>
+        <h1 className="text-4xl font-bold mb-2">TDO Builder</h1>
+        <p className="text-xl text-gray-500">Create compliant trade document with embedded data.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -62,7 +62,7 @@ function App() {
             <div className="flex items-center gap-8">
               <Link to="/" className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold">T</div>
-                <span className="text-2xl font-bold tracking-tight">TradeDocs</span>
+                <span className="text-2xl font-bold tracking-tight">TDO Builder</span>
               </Link>
               <div className="hidden md:flex gap-6 text-sm font-medium">
                 <Link to="/templates" className="transition-colors hover:text-blue-600 text-gray-500">Dashboard</Link>
@@ -91,7 +91,7 @@ function App() {
         <footer className="border-t py-12 bg-white">
           <div className="container mx-auto px-8 text-center">
             <p className="text-sm text-gray-500">
-              &copy; 2026 TradeDocs. All documents generated are UN/CEFACT CII and PDF/A-3 compliant.
+              &copy; 2026 TDO Builder. All documents generated are UN/CEFACT compliant.
             </p>
           </div>
         </footer>

@@ -42,8 +42,8 @@ export default function MyDocuments() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">My Templates</h1>
-        <p className="text-gray-500">Manage your custom saved templates.</p>
+        <h1 className="text-2xl font-bold">My Templates</h1>
+        <p className="text-sm text-gray-500 mt-1">Manage your custom saved templates.</p>
       </div>
 
       {myTemplates.length > 0 ? (
@@ -97,8 +97,8 @@ export default function MyDocuments() {
                       </Button>
                     </div>
                   </div>
-                  <CardTitle>{template.name}</CardTitle>
-                  <CardDescription>Saved on {new Date(template.createdAt).toLocaleDateString()}</CardDescription>
+                  <CardTitle className="text-lg">{template.name}</CardTitle>
+                  <CardDescription className="text-xs">Saved on {new Date(template.createdAt).toLocaleDateString()}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="text-sm space-y-1">

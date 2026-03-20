@@ -9,8 +9,8 @@ export default defineConfig({
   }),
   manifest: {
     permissions: ['sidePanel', 'storage'],
-    name: 'TradeDocs - UN/CEFACT Invoice Creator',
-    description: 'Create UN/CEFACT compliant invoices directly in your browser sidepanel.',
+    name: 'TDO Builder',
+    description: 'Create UN/CEFACT compliant trade docs directly in your browser.',
     action: {
       default_title: 'Open Sidepanel',
     },
