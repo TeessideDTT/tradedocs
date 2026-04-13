@@ -3,12 +3,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Search, Loader2 } from 'lucide-react';
 import { LayoutProps } from './types';
 import { COUNTRIES, CURRENCIES } from '@/lib/uncefact/constants';
 
 export function StandardLayout({ invoice, layout, isEditing, handlers }: LayoutProps) {
-  const { handlePartyChange, handleAddressChange, handleLineChange, addLineItem, removeLineItem, setInvoice } = handlers;
+  const { handlePartyChange, handleAddressChange, handleLineChange, handleLookup, lookupParty, isLookingUp, addLineItem, removeLineItem, setInvoice } = handlers;
 
   return (
     <div className="space-y-12 font-sans" style={{ fontFamily: layout.font.body }}>
@@ -63,6 +63,38 @@ export function StandardLayout({ invoice, layout, isEditing, handlers }: LayoutP
         <div className="space-y-4">
           <h3 className="text-lg font-bold border-b pb-2" style={{ color: layout.colors.primary, borderColor: layout.colors.secondary }}>Seller (Supplier)</h3>
           <div className="space-y-4">
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <Label className="text-gray-500 text-xs uppercase">Company ID (v-no)</Label>
+                {isEditing ? (
+                  <Input 
+                    value={invoice.seller.id || ''} 
+                    onChange={e => handlePartyChange('seller', 'id', e.target.value)} 
+                    placeholder="e.g. gb/15863314"
+                    className="mt-1" 
+                  />
+                ) : <p className="font-medium">{invoice.seller.id || 'N/A'}</p>}
+              </div>
+              {isEditing && (
+                <div className="flex items-center space-x-2 pb-2">
+                  <input 
+                    type="checkbox" 
+                    id="seller-lookup" 
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        handleLookup('seller');
+                        e.target.checked = false; // Reset after trigger
+                      }
+                    }} 
+                    disabled={isLookingUp}
+                  />
+                  <Label htmlFor="seller-lookup" className="text-xs cursor-pointer flex items-center gap-1">
+                    {isLookingUp && lookupParty === 'seller' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />} Lookup
+                  </Label>
+                </div>
+              )}
+            </div>
             <div>
               <Label className="text-gray-500 text-xs uppercase">Company Name</Label>
               {isEditing ? <Input value={invoice.seller.name} onChange={e => handlePartyChange('seller', 'name', e.target.value)} className="mt-1" /> : <p className="font-medium">{invoice.seller.name}</p>}
@@ -107,6 +139,38 @@ export function StandardLayout({ invoice, layout, isEditing, handlers }: LayoutP
         <div className="space-y-4">
           <h3 className="text-lg font-bold border-b pb-2" style={{ color: layout.colors.primary, borderColor: layout.colors.secondary }}>{layout.labels.billTo || 'Buyer (Customer)'}</h3>
           <div className="space-y-4">
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <Label className="text-gray-500 text-xs uppercase">Company ID (v-no)</Label>
+                {isEditing ? (
+                  <Input 
+                    value={invoice.buyer.id || ''} 
+                    onChange={e => handlePartyChange('buyer', 'id', e.target.value)} 
+                    placeholder="e.g. gb/15863314"
+                    className="mt-1" 
+                  />
+                ) : <p className="font-medium">{invoice.buyer.id || 'N/A'}</p>}
+              </div>
+              {isEditing && (
+                <div className="flex items-center space-x-2 pb-2">
+                  <input 
+                    type="checkbox" 
+                    id="buyer-lookup" 
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        handleLookup('buyer');
+                        e.target.checked = false; // Reset after trigger
+                      }
+                    }} 
+                    disabled={isLookingUp}
+                  />
+                  <Label htmlFor="buyer-lookup" className="text-xs cursor-pointer flex items-center gap-1">
+                    {isLookingUp && lookupParty === 'buyer' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />} Lookup
+                  </Label>
+                </div>
+              )}
+            </div>
             <div>
               <Label className="text-gray-500 text-xs uppercase">Company Name</Label>
               {isEditing ? <Input value={invoice.buyer.name} onChange={e => handlePartyChange('buyer', 'name', e.target.value)} className="mt-1" /> : <p className="font-medium">{invoice.buyer.name}</p>}

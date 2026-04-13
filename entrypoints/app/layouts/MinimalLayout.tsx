@@ -3,12 +3,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Search, Loader2 } from 'lucide-react';
 import { LayoutProps } from './types';
 import { COUNTRIES, CURRENCIES } from '@/lib/uncefact/constants';
 
 export function MinimalLayout({ invoice, layout, isEditing, handlers }: LayoutProps) {
-  const { handlePartyChange, handleAddressChange, handleLineChange, addLineItem, removeLineItem, setInvoice } = handlers;
+  const { handlePartyChange, handleAddressChange, handleLineChange, handleLookup, lookupParty, isLookingUp, addLineItem, removeLineItem, setInvoice } = handlers;
 
   return (
     <div className="font-serif p-12 max-w-4xl mx-auto text-gray-800" style={{ fontFamily: layout.font.body }}>
@@ -29,6 +29,32 @@ export function MinimalLayout({ invoice, layout, isEditing, handlers }: LayoutPr
             <div className="text-xs uppercase tracking-widest text-gray-400 mb-4">From</div>
             {isEditing ? (
                <div className="space-y-2 text-right">
+                  <div className="flex gap-2 items-center justify-end">
+                    <div className="flex items-center gap-1">
+                      <input 
+                        type="checkbox" 
+                        id="seller-lookup-minimal" 
+                        className="w-3 h-3 rounded"
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            handleLookup('seller');
+                            e.target.checked = false;
+                          }
+                        }}
+                        disabled={isLookingUp}
+                      />
+                      <label htmlFor="seller-lookup-minimal" className="text-[10px] uppercase opacity-40 cursor-pointer flex items-center gap-1">
+                        {isLookingUp && lookupParty === 'seller' ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : null}
+                        Lookup
+                      </label>
+                    </div>
+                    <Input 
+                      value={invoice.seller.id || ''} 
+                      onChange={e => handlePartyChange('seller', 'id', e.target.value)} 
+                      className="text-right border-gray-200 w-32 h-8" 
+                      placeholder="ID" 
+                    />
+                  </div>
                   <Input value={invoice.seller.name} onChange={e => handlePartyChange('seller', 'name', e.target.value)} className="text-right border-gray-200" placeholder="Seller Name" />
                   <Input value={invoice.seller.address?.street || ''} onChange={e => handleAddressChange('seller', 'street', e.target.value)} className="text-right border-gray-200" placeholder="Street" />
                   <Input value={invoice.seller.address?.city || ''} onChange={e => handleAddressChange('seller', 'city', e.target.value)} className="text-right border-gray-200" placeholder="City" />
@@ -48,6 +74,32 @@ export function MinimalLayout({ invoice, layout, isEditing, handlers }: LayoutPr
             <div className="text-xs uppercase tracking-widest text-gray-400 mb-4">{layout.labels.billTo || 'To'}</div>
             {isEditing ? (
                <div className="space-y-2">
+                  <div className="flex gap-2 items-center">
+                    <Input 
+                      value={invoice.buyer.id || ''} 
+                      onChange={e => handlePartyChange('buyer', 'id', e.target.value)} 
+                      className="border-gray-200 w-32 h-8" 
+                      placeholder="ID" 
+                    />
+                    <div className="flex items-center gap-1">
+                      <input 
+                        type="checkbox" 
+                        id="buyer-lookup-minimal" 
+                        className="w-3 h-3 rounded"
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            handleLookup('buyer');
+                            e.target.checked = false;
+                          }
+                        }}
+                        disabled={isLookingUp}
+                      />
+                      <label htmlFor="buyer-lookup-minimal" className="text-[10px] uppercase opacity-40 cursor-pointer flex items-center gap-1">
+                         {isLookingUp && lookupParty === 'buyer' ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : null}
+                         Lookup
+                      </label>
+                    </div>
+                  </div>
                   <Input value={invoice.buyer.name} onChange={e => handlePartyChange('buyer', 'name', e.target.value)} className="border-gray-200" placeholder="Buyer Name" />
                   <Input value={invoice.buyer.address?.street || ''} onChange={e => handleAddressChange('buyer', 'street', e.target.value)} className="border-gray-200" placeholder="Street" />
                   <Input value={invoice.buyer.address?.city || ''} onChange={e => handleAddressChange('buyer', 'city', e.target.value)} className="border-gray-200" placeholder="City" />

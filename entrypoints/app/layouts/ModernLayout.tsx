@@ -3,12 +3,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Search, Loader2 } from 'lucide-react';
 import { LayoutProps } from './types';
 import { COUNTRIES, CURRENCIES } from '@/lib/uncefact/constants';
 
 export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutProps) {
-  const { handlePartyChange, handleAddressChange, handleLineChange, addLineItem, removeLineItem, setInvoice } = handlers;
+  const { handlePartyChange, handleAddressChange, handleLineChange, handleLookup, lookupParty, isLookingUp, addLineItem, removeLineItem, setInvoice } = handlers;
 
   return (
     <div className="font-sans min-h-[800px] flex flex-col" style={{ fontFamily: layout.font.body }}>
@@ -43,13 +43,39 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
            <div>
               <div className="text-xs uppercase opacity-70 mb-1">From</div>
               {isEditing ? (
-                 <div className="space-y-2">
-                    <Input value={invoice.seller.name} onChange={e => handlePartyChange('seller', 'name', e.target.value)} className="bg-white/10 border-none text-white placeholder:text-white/50 h-8" placeholder="Seller Name" />
-                    <div className="grid grid-cols-2 gap-2">
-                       <Input value={invoice.seller.address?.street || ''} onChange={e => handleAddressChange('seller', 'street', e.target.value)} className="bg-white/10 border-none text-white h-8" placeholder="Street" />
-                       <Input value={invoice.seller.address?.city || ''} onChange={e => handleAddressChange('seller', 'city', e.target.value)} className="bg-white/10 border-none text-white h-8" placeholder="City" />
-                    </div>
-                 </div>
+                  <div className="space-y-2">
+                     <div className="flex gap-2 items-end">
+                       <Input 
+                         value={invoice.seller.id || ''} 
+                         onChange={e => handlePartyChange('seller', 'id', e.target.value)} 
+                         className="bg-white/10 border-none text-white placeholder:text-white/50 h-8 flex-1" 
+                         placeholder="Company ID" 
+                       />
+                       <div className="flex items-center gap-1 mb-1">
+                         <input 
+                           type="checkbox" 
+                           id="seller-lookup-modern" 
+                           className="w-3 h-3 rounded bg-white/10 border-none"
+                           onChange={(e) => {
+                             if (e.target.checked) {
+                               handleLookup('seller');
+                               e.target.checked = false;
+                             }
+                           }}
+                           disabled={isLookingUp}
+                         />
+                         <label htmlFor="seller-lookup-modern" className="text-[10px] uppercase opacity-70 cursor-pointer flex items-center gap-1">
+                           {isLookingUp && lookupParty === 'seller' ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : null}
+                           Lookup
+                         </label>
+                       </div>
+                     </div>
+                     <Input value={invoice.seller.name} onChange={e => handlePartyChange('seller', 'name', e.target.value)} className="bg-white/10 border-none text-white placeholder:text-white/50 h-8" placeholder="Seller Name" />
+                     <div className="grid grid-cols-2 gap-2">
+                        <Input value={invoice.seller.address?.street || ''} onChange={e => handleAddressChange('seller', 'street', e.target.value)} className="bg-white/10 border-none text-white h-8" placeholder="Street" />
+                        <Input value={invoice.seller.address?.city || ''} onChange={e => handleAddressChange('seller', 'city', e.target.value)} className="bg-white/10 border-none text-white h-8" placeholder="City" />
+                     </div>
+                  </div>
               ) : (
                  <div>
                     <div className="font-bold text-lg">{invoice.seller.name}</div>
@@ -83,12 +109,39 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
            <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
               {isEditing ? (
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                       <Label>Company</Label>
-                       <Input value={invoice.buyer.name} onChange={e => handlePartyChange('buyer', 'name', e.target.value)} />
-                       <Label>Tax ID</Label>
-                       <Input value={invoice.buyer.taxId || ''} onChange={e => handlePartyChange('buyer', 'taxId', e.target.value)} />
-                    </div>
+                     <div className="space-y-2">
+                        <div className="flex gap-2 items-end">
+                           <div className="flex-1">
+                              <Label>Company ID</Label>
+                              <Input 
+                                 value={invoice.buyer.id || ''} 
+                                 onChange={e => handlePartyChange('buyer', 'id', e.target.value)} 
+                                 placeholder="gb/15863314"
+                              />
+                           </div>
+                           <div className="flex items-center space-x-2 pb-2">
+                              <input 
+                                 type="checkbox" 
+                                 id="buyer-lookup-modern" 
+                                 className="w-4 h-4 rounded border-gray-300 text-blue-600"
+                                 onChange={(e) => {
+                                    if (e.target.checked) {
+                                       handleLookup('buyer');
+                                       e.target.checked = false;
+                                    }
+                                 }}
+                                 disabled={isLookingUp}
+                              />
+                              <Label htmlFor="buyer-lookup-modern" className="text-xs flex items-center gap-1 cursor-pointer">
+                                 {isLookingUp && lookupParty === 'buyer' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />} Lookup
+                              </Label>
+                           </div>
+                        </div>
+                        <Label>Company Name</Label>
+                        <Input value={invoice.buyer.name} onChange={e => handlePartyChange('buyer', 'name', e.target.value)} />
+                        <Label>Tax ID</Label>
+                        <Input value={invoice.buyer.taxId || ''} onChange={e => handlePartyChange('buyer', 'taxId', e.target.value)} />
+                     </div>
                     <div className="space-y-2">
                        <Label>Address</Label>
                        <Input value={invoice.buyer.address?.street || ''} onChange={e => handleAddressChange('buyer', 'street', e.target.value)} placeholder="Street" />
