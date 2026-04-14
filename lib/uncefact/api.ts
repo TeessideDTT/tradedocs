@@ -10,6 +10,7 @@ export interface CompanyApiResponse {
   registered_address_street_address: string;
   registered_address_postal_code: string;
   registered_address_country: string;
+  registered_address_locality: string;
   status: string;
   plei: string | null;
   city?: string | null;
@@ -37,11 +38,8 @@ export async function fetchCompanyDetails(companyId: string): Promise<CompanyApi
 
     const data = await response.json() as CompanyApiResponse;
     
-    // Internally resolve the city name from the postcode
-    if (data.registered_address_postal_code) {
-      const countryCode = (data.jurisdiction_code || 'GB').toUpperCase();
-      data.city = await fetchCityFromPostcode(data.registered_address_postal_code, countryCode);
-    }
+    // Use the locality field from the primary response as the city
+    data.city = data.registered_address_locality || null;
 
     return data;
   } catch (error) {
