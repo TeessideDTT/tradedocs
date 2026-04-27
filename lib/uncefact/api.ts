@@ -1,4 +1,4 @@
-export const LOOKUP_API_BASE_URL = 'http://localhost:8000/lookup';
+export const LOOKUP_API_BASE_URL = 'https://ocapi.corridorone.uk/lookup';
 
 export interface CompanyApiResponse {
   legacy_company_id: string;
@@ -37,7 +37,7 @@ export async function fetchCompanyDetails(companyId: string): Promise<CompanyApi
     }
 
     const data = await response.json() as CompanyApiResponse;
-    
+
     // Use the locality field from the primary response as the city
     data.city = data.registered_address_locality || null;
 
