@@ -3,8 +3,8 @@ import { Invoice } from './models';
 /**
  * Converts an internal Invoice model (JSON) into a Schema.org compliant JSON-LD string.
  */
-export function invoiceToJsonLd(invoice: Invoice): string {
-  const jsonld = {
+export function invoiceToJsonLd(invoice: Invoice, hash?: string, timestamp?: string): string {
+  const jsonld: any = {
     "@context": "https://schema.org",
     "@type": "Invoice",
     "identifier": invoice.id,
@@ -63,6 +63,11 @@ export function invoiceToJsonLd(invoice: Invoice): string {
       "duePayableAmount": invoice.totals.duePayableAmount
     }
   };
+
+  if (hash && timestamp) {
+    jsonld["verificationHash"] = hash;
+    jsonld["verificationTimestamp"] = timestamp;
+  }
 
   return JSON.stringify(jsonld, null, 2);
 }

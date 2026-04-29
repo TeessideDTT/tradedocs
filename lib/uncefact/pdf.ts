@@ -6,14 +6,28 @@ import { generateCIIXML } from './xml';
 import { invoiceToJsonLd, jsonLdToInvoice } from './jsonld';
 import * as htmlToImage from 'html-to-image';
 import { jsPDF } from 'jspdf';
+import QRCode from 'qrcode';
+import stringify from 'json-stringify-deterministic';
 
 export async function generateInvoicePdf(
   invoice: Invoice,
   layout: InvoiceLayout = UK_LAYOUT,
-  elementToCapture?: HTMLElement | null
+  elementToCapture?: HTMLElement | null,
+  wasEdited: boolean = false
 ): Promise<Uint8Array> {
   
   let basePdfBytes: ArrayBuffer;
+
+  let hashHex: string | undefined;
+  let timestamp: string | undefined;
+
+  if (wasEdited) {
+    timestamp = new Date().toISOString();
+    const invoiceJson = stringify({ ...invoice, timestamp });
+    const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(invoiceJson));
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
 
   if (elementToCapture) {
     // Capture the HTML element directly using modern html-to-image which supports new CSS
@@ -40,6 +54,19 @@ export async function generateInvoicePdf(
     const pdfHeight = (elementHeight * pdfWidth) / elementWidth;
     
     pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+    
+    if (hashHex && timestamp) {
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const qrData = `Document Hash: ${hashHex}\nGenerated: ${timestamp}`;
+      const qrDataUrl = await QRCode.toDataURL(qrData, { margin: 1, scale: 4 });
+      
+      const qrSize = 50; // Size of the QR code square in points
+      const x = pdfWidth - qrSize - 20; // 20pt margin from right
+      const y = pageHeight - qrSize - 20; // 20pt margin from bottom
+      
+      pdf.addImage(qrDataUrl, 'PNG', x, y, qrSize, qrSize);
+    }
+    
     basePdfBytes = pdf.output('arraybuffer');
   } else {
     // Fallback empty document if no HTML element is provided
@@ -55,7 +82,7 @@ export async function generateInvoicePdf(
 
   // Embed JSON-LD and CII XML for PDF/A-3 Compliance
   const ciiXmlStr = generateCIIXML(invoice);
-  const jsonLdStr = invoiceToJsonLd(invoice);
+  const jsonLdStr = invoiceToJsonLd(invoice, hashHex, timestamp);
 
   await pdfDoc.attach(new TextEncoder().encode(ciiXmlStr), 'factur-x.xml', {
     mimeType: 'application/xml',
@@ -80,10 +107,11 @@ export async function generateInvoicePdf(
   });
 
   const finalPdfBytes = await pdfDoc.save();
+
   return finalPdfBytes;
 }
 
-export async function extractInvoiceDataFromPdf(fileBuffer: ArrayBuffer): Promise<{ invoice: Partial<Invoice>, layoutId?: string }> {
+export async function extractInvoiceDataFromPdf(fileBuffer: ArrayBuffer): Promise<{ invoice: Partial<Invoice>, layoutId?: string, isTampered?: boolean, hasVerification?: boolean }> {
   let pdf;
   try {
     const uint8Array = new Uint8Array(fileBuffer);
@@ -127,7 +155,24 @@ export async function extractInvoiceDataFromPdf(fileBuffer: ArrayBuffer): Promis
     }
 
     const parsed = JSON.parse(jsonLdString);
-    return { invoice: jsonLdToInvoice(parsed), layoutId };
+    const invoice = jsonLdToInvoice(parsed);
+
+    let isTampered = false;
+    let hasVerification = false;
+
+    if (parsed.verificationHash && parsed.verificationTimestamp) {
+       hasVerification = true;
+       const invoiceJson = stringify({ ...invoice, timestamp: parsed.verificationTimestamp });
+       const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(invoiceJson));
+       const hashArray = Array.from(new Uint8Array(hashBuffer));
+       const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+       
+       if (hashHex !== parsed.verificationHash) {
+          isTampered = true;
+       }
+    }
+
+    return { invoice, layoutId, isTampered, hasVerification };
   } catch (error) {
     if (error instanceof SyntaxError) {
       throw new Error("The embedded JSON-LD metadata is malformed and could not be parsed.");

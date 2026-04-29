@@ -64,17 +64,17 @@ export function StandardLayout({ invoice, layout, isEditing, handlers }: LayoutP
           <h3 className="text-lg font-bold border-b pb-2" style={{ color: layout.colors.primary, borderColor: layout.colors.secondary }}>Seller (Supplier)</h3>
           <div className="space-y-4">
             <div className="flex gap-2 items-end">
-              <div className="flex-1">
-                <Label className="text-gray-500 text-xs uppercase">Company ID (v-no)</Label>
-                {isEditing ? (
+              {isEditing && (
+                <div className="flex-1">
+                  <Label className="text-gray-500 text-xs uppercase">Company ID (v-no)</Label>
                   <Input 
                     value={invoice.seller.id || ''} 
                     onChange={e => handlePartyChange('seller', 'id', e.target.value)} 
                     placeholder="e.g. gb/15863314"
                     className="mt-1" 
                   />
-                ) : <p className="font-medium">{invoice.seller.id || 'N/A'}</p>}
-              </div>
+                </div>
+              )}
               {isEditing && (
                 <div className="flex items-center space-x-2 pb-2">
                   <input 
@@ -140,17 +140,17 @@ export function StandardLayout({ invoice, layout, isEditing, handlers }: LayoutP
           <h3 className="text-lg font-bold border-b pb-2" style={{ color: layout.colors.primary, borderColor: layout.colors.secondary }}>{layout.labels.billTo || 'Buyer (Customer)'}</h3>
           <div className="space-y-4">
             <div className="flex gap-2 items-end">
-              <div className="flex-1">
-                <Label className="text-gray-500 text-xs uppercase">Company ID (v-no)</Label>
-                {isEditing ? (
+              {isEditing && (
+                <div className="flex-1">
+                  <Label className="text-gray-500 text-xs uppercase">Company ID (v-no)</Label>
                   <Input 
                     value={invoice.buyer.id || ''} 
                     onChange={e => handlePartyChange('buyer', 'id', e.target.value)} 
                     placeholder="e.g. gb/15863314"
                     className="mt-1" 
                   />
-                ) : <p className="font-medium">{invoice.buyer.id || 'N/A'}</p>}
-              </div>
+                </div>
+              )}
               {isEditing && (
                 <div className="flex items-center space-x-2 pb-2">
                   <input 

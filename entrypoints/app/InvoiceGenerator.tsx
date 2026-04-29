@@ -26,6 +26,7 @@ export default function InvoiceGenerator() {
   const invoiceRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [dataWasEdited, setDataWasEdited] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [templateNameInput, setTemplateNameInput] = useState("");
 
@@ -137,7 +138,7 @@ export default function InvoiceGenerator() {
   const handleDownloadPdf = async () => {
     try {
       setIsGenerating(true);
-      const pdfBytes = await generateInvoicePdf(invoice, selectedLayout, invoiceRef.current);
+      const pdfBytes = await generateInvoicePdf(invoice, selectedLayout, invoiceRef.current, dataWasEdited);
       const blob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -223,7 +224,15 @@ export default function InvoiceGenerator() {
       </div>
       
       <div ref={invoiceRef} className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
-        <InvoiceForm invoice={invoice} layout={selectedLayout} isEditing={isEditing} setInvoice={setInvoice} />
+        <InvoiceForm 
+          invoice={invoice} 
+          layout={selectedLayout} 
+          isEditing={isEditing} 
+          setInvoice={(val) => {
+            setDataWasEdited(true);
+            setInvoice(val);
+          }} 
+        />
       </div>
     </div>
   );

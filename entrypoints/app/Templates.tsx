@@ -20,6 +20,21 @@ export default function Templates() {
       const buffer = await file.arrayBuffer();
       const extractedData = await extractInvoiceDataFromPdf(buffer);
       
+      if (extractedData.hasVerification) {
+        if (extractedData.isTampered) {
+          const proceed = window.confirm("SECURITY WARNING: The document data appears to have been tampered with or corrupted since generation (Verification Hash Mismatch). Do you still want to proceed with importing?");
+          if (!proceed) {
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            setIsExtracting(false);
+            return;
+          }
+        } else {
+          window.alert("SUCCESS: The document data's cryptographic signature has been verified. The file is authentic and unaltered.");
+        }
+      } else {
+        window.alert("NOTICE: This document does not contain a verifiable hash signature. It has been imported as standard data.");
+      }
+
       // Navigate to editor with the extracted data and the layout ID if it was preserved
       navigate('/generator', { 
         state: { 
