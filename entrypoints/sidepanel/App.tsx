@@ -2,10 +2,24 @@ import React from 'react';
 import { ExternalLink, FilePlus, LayoutGrid, Settings } from 'lucide-react';
 
 function App() {
-  const openApp = (path = '') => {
-    // Navigate to the unlisted app page in a new tab
-    const url = browser.runtime.getURL(`/app.html#${path}`);
-    browser.tabs.create({ url });
+  const openApp = async (path = '') => {
+    const baseUrl = browser.runtime.getURL('/app.html');
+    const fullUrl = `${baseUrl}#${path}`;
+    
+    // Query for any existing tabs with the app URL
+    const tabs = await browser.tabs.query({ url: `${baseUrl}*` });
+    
+    if (tabs && tabs.length > 0) {
+      // Reuse the first found tab
+      const tabId = tabs[0].id;
+      if (tabId) {
+        await browser.tabs.update(tabId, { active: true, url: fullUrl });
+        await browser.windows.update(tabs[0].windowId, { focused: true });
+      }
+    } else {
+      // Navigate to the unlisted app page in a new tab
+      browser.tabs.create({ url: fullUrl });
+    }
   };
 
   return (

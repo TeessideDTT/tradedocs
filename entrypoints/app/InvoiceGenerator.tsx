@@ -223,16 +223,18 @@ export default function InvoiceGenerator() {
         </div>
       </div>
       
-      <div ref={invoiceRef} className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
-        <InvoiceForm 
-          invoice={invoice} 
-          layout={selectedLayout} 
-          isEditing={isEditing} 
-          setInvoice={(val) => {
-            setDataWasEdited(true);
-            setInvoice(val);
-          }} 
-        />
+      <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-4">
+        <div ref={invoiceRef} className={`bg-white p-4 sm:p-8 rounded-xl border border-gray-200 shadow-sm ${!isEditing ? 'w-fit min-w-full' : ''}`}>
+          <InvoiceForm 
+            invoice={invoice} 
+            layout={selectedLayout} 
+            isEditing={isEditing} 
+            setInvoice={(val) => {
+              setDataWasEdited(true);
+              setInvoice(val);
+            }} 
+          />
+        </div>
       </div>
     </div>
   );

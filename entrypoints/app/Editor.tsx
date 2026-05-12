@@ -158,8 +158,10 @@ export default function Editor() {
         </div>
       </div>
       
-      <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
-        <InvoiceForm invoice={invoice} layout={selectedLayout} isEditing={isEditing} setInvoice={setInvoice as React.Dispatch<React.SetStateAction<Invoice>>} />
+      <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-4">
+        <div className={`bg-white p-4 sm:p-8 rounded-xl border border-gray-200 shadow-sm ${!isEditing ? 'w-fit min-w-full' : ''}`}>
+          <InvoiceForm invoice={invoice} layout={selectedLayout} isEditing={isEditing} setInvoice={setInvoice as React.Dispatch<React.SetStateAction<Invoice>>} />
+        </div>
       </div>
     </div>
   );

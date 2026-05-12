@@ -11,7 +11,7 @@ export function MinimalLayout({ invoice, layout, isEditing, handlers }: LayoutPr
   const { handlePartyChange, handleAddressChange, handleLineChange, handleLookup, lookupParty, isLookingUp, addLineItem, removeLineItem, setInvoice } = handlers;
 
   return (
-    <div className="font-serif p-12 max-w-4xl mx-auto text-gray-800" style={{ fontFamily: layout.font.body }}>
+    <div className={`font-serif max-w-4xl mx-auto text-gray-800 ${isEditing ? 'p-4 sm:p-8 md:p-12' : 'p-12 min-w-[800px]'}`} style={{ fontFamily: layout.font.body }}>
       {/* Header - Centered & Minimal */}
       <div className="text-center mb-16 space-y-2">
         <h1 className="text-3xl tracking-widest uppercase font-light border-b border-gray-200 pb-4 inline-block px-12">
@@ -23,13 +23,13 @@ export function MinimalLayout({ invoice, layout, isEditing, handlers }: LayoutPr
       </div>
 
       {/* Grid for Addresses */}
-      <div className="grid grid-cols-2 gap-12 mb-16">
+      <div className={`grid mb-16 ${isEditing ? 'grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-12' : 'grid-cols-2 gap-12'}`}>
          {/* Seller */}
-         <div className="text-right border-r border-gray-100 pr-12">
+         <div className={`border-gray-100 ${isEditing ? 'text-left sm:text-right border-b sm:border-b-0 sm:border-r pb-8 sm:pb-0 sm:pr-12' : 'text-right border-r pr-12'}`}>
             <div className="text-xs uppercase tracking-widest text-gray-400 mb-4">From</div>
             {isEditing ? (
-               <div className="space-y-2 text-right">
-                  <div className="flex gap-2 items-center justify-end">
+               <div className="space-y-2 text-left sm:text-right">
+                  <div className="flex gap-2 items-center justify-start sm:justify-end">
                     <div className="flex items-center gap-1">
                       <input 
                         type="checkbox" 
@@ -51,13 +51,13 @@ export function MinimalLayout({ invoice, layout, isEditing, handlers }: LayoutPr
                     <Input 
                       value={invoice.seller.id || ''} 
                       onChange={e => handlePartyChange('seller', 'id', e.target.value)} 
-                      className="text-right border-gray-200 w-32 h-8" 
+                      className="text-left sm:text-right border-gray-200 w-32 h-8" 
                       placeholder="ID" 
                     />
                   </div>
-                  <Input value={invoice.seller.name} onChange={e => handlePartyChange('seller', 'name', e.target.value)} className="text-right border-gray-200" placeholder="Seller Name" />
-                  <Input value={invoice.seller.address?.street || ''} onChange={e => handleAddressChange('seller', 'street', e.target.value)} className="text-right border-gray-200" placeholder="Street" />
-                  <Input value={invoice.seller.address?.city || ''} onChange={e => handleAddressChange('seller', 'city', e.target.value)} className="text-right border-gray-200" placeholder="City" />
+                  <Input value={invoice.seller.name} onChange={e => handlePartyChange('seller', 'name', e.target.value)} className="text-left sm:text-right border-gray-200" placeholder="Seller Name" />
+                  <Input value={invoice.seller.address?.street || ''} onChange={e => handleAddressChange('seller', 'street', e.target.value)} className="text-left sm:text-right border-gray-200" placeholder="Street" />
+                  <Input value={invoice.seller.address?.city || ''} onChange={e => handleAddressChange('seller', 'city', e.target.value)} className="text-left sm:text-right border-gray-200" placeholder="City" />
                </div>
             ) : (
                <div className="space-y-1">
@@ -70,7 +70,7 @@ export function MinimalLayout({ invoice, layout, isEditing, handlers }: LayoutPr
          </div>
 
          {/* Buyer */}
-         <div className="pl-4">
+         <div className={isEditing ? 'pt-4 sm:pt-0 sm:pl-4' : 'pl-4'}>
             <div className="text-xs uppercase tracking-widest text-gray-400 mb-4">{layout.labels.billTo || 'To'}</div>
             {isEditing ? (
                <div className="space-y-2">
@@ -116,8 +116,8 @@ export function MinimalLayout({ invoice, layout, isEditing, handlers }: LayoutPr
       </div>
 
       {/* Items Table - Clean, no vertical lines */}
-      <div className="mb-16">
-         <table className="w-full">
+      <div className="mb-16 overflow-x-auto">
+         <table className="w-full min-w-[800px]">
             <thead>
                <tr className="border-b border-gray-800">
                   <th className="py-4 text-left font-normal uppercase tracking-widest text-xs w-1/2">Item</th>
@@ -144,10 +144,10 @@ export function MinimalLayout({ invoice, layout, isEditing, handlers }: LayoutPr
                         )}
                      </td>
                      <td className="py-4 text-center text-gray-500">
-                        {isEditing ? <Input type="number" value={line.quantity} onChange={e => handleLineChange(index, 'quantity', e.target.value)} className="w-16 text-center mx-auto border-gray-200" /> : line.quantity}
+                        {isEditing ? <Input type="number" value={line.quantity} onChange={e => handleLineChange(index, 'quantity', e.target.value)} className="w-24 min-w-[80px] text-center mx-auto border-gray-200" /> : line.quantity}
                      </td>
                      <td className="py-4 text-right text-gray-500">
-                        {isEditing ? <Input type="number" value={line.unitPrice} onChange={e => handleLineChange(index, 'unitPrice', e.target.value)} className="w-20 ml-auto text-right border-gray-200" /> : line.unitPrice.toFixed(2)}
+                        {isEditing ? <Input type="number" value={line.unitPrice} onChange={e => handleLineChange(index, 'unitPrice', e.target.value)} className="w-28 min-w-[100px] ml-auto text-right border-gray-200" /> : line.unitPrice.toFixed(2)}
                      </td>
                      <td className="py-4 text-right font-medium">
                         {line.amount.toFixed(2)}
@@ -173,20 +173,20 @@ export function MinimalLayout({ invoice, layout, isEditing, handlers }: LayoutPr
       </div>
 
       {/* Totals - Simple */}
-      <div className="border-t border-gray-200 pt-8 flex justify-between items-end">
+      <div className={`border-t border-gray-200 pt-8 flex justify-between ${isEditing ? 'flex-col sm:flex-row items-start sm:items-end gap-6 sm:gap-0' : 'items-end'}`}>
          <div className="text-sm text-gray-400 max-w-xs">
             Thank you for your business. Payment is due within 30 days.
          </div>
-         <div className="text-right space-y-2">
-            <div className="flex justify-between w-64 text-gray-500">
+         <div className={`text-right space-y-2 ${isEditing ? 'w-full sm:w-auto' : ''}`}>
+            <div className={`flex justify-between text-gray-500 ${isEditing ? 'w-full sm:w-64' : 'w-64'}`}>
                <span>Subtotal</span>
                <span>{invoice.totals.lineTotalAmount.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between w-64 text-gray-500">
+            <div className={`flex justify-between text-gray-500 ${isEditing ? 'w-full sm:w-64' : 'w-64'}`}>
                <span>{layout.labels.tax || 'VAT'}</span>
                <span>{invoice.totals.taxTotalAmount.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between w-64 font-medium text-2xl text-gray-900 pt-4 mt-2 border-t border-gray-100">
+            <div className={`flex justify-between font-medium text-2xl text-gray-900 pt-4 mt-2 border-t border-gray-100 ${isEditing ? 'w-full sm:w-64' : 'w-64'}`}>
                <span>Total</span>
                <span>{invoice.currency} {invoice.totals.grandTotalAmount.toFixed(2)}</span>
             </div>

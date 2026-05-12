@@ -11,10 +11,10 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
   const { handlePartyChange, handleAddressChange, handleLineChange, handleLookup, lookupParty, isLookingUp, addLineItem, removeLineItem, setInvoice } = handlers;
 
   return (
-    <div className="font-sans min-h-[800px] flex flex-col" style={{ fontFamily: layout.font.body }}>
+    <div className={`font-sans min-h-[800px] flex flex-col ${!isEditing ? 'min-w-[800px]' : ''}`} style={{ fontFamily: layout.font.body }}>
       {/* Modern Header - Full Width Color */}
-      <div className="p-8 text-white rounded-t-xl" style={{ backgroundColor: layout.colors.primary }}>
-        <div className="flex justify-between items-start">
+      <div className={`text-white rounded-t-xl ${isEditing ? 'p-4 sm:p-8' : 'p-8'}`} style={{ backgroundColor: layout.colors.primary }}>
+        <div className={`flex justify-between items-start ${isEditing ? 'flex-col sm:flex-row gap-4 sm:gap-0' : 'flex-row gap-0'}`}>
           <div className="space-y-2">
             <h1 className="text-4xl font-bold tracking-tight">{layout.labels.invoiceTitle || 'INVOICE'}</h1>
             <div className="flex items-center gap-2 opacity-90">
@@ -39,7 +39,7 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
         </div>
 
         {/* Seller Info in Header */}
-        <div className="mt-8 pt-6 border-t border-white/20 grid grid-cols-2 gap-8">
+        <div className={`pt-6 border-t border-white/20 grid ${isEditing ? 'mt-6 sm:mt-8 grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8' : 'mt-8 grid-cols-2 gap-8'}`}>
            <div>
               <div className="text-xs uppercase opacity-70 mb-1">From</div>
               {isEditing ? (
@@ -71,7 +71,7 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
                        </div>
                      </div>
                      <Input value={invoice.seller.name} onChange={e => handlePartyChange('seller', 'name', e.target.value)} className="bg-white/10 border-none text-white placeholder:text-white/50 h-8" placeholder="Seller Name" />
-                     <div className="grid grid-cols-2 gap-2">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <Input value={invoice.seller.address?.street || ''} onChange={e => handleAddressChange('seller', 'street', e.target.value)} className="bg-white/10 border-none text-white h-8" placeholder="Street" />
                         <Input value={invoice.seller.address?.city || ''} onChange={e => handleAddressChange('seller', 'city', e.target.value)} className="bg-white/10 border-none text-white h-8" placeholder="City" />
                      </div>
@@ -84,10 +84,10 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
                  </div>
               )}
            </div>
-           <div className="text-right">
+           <div className={isEditing ? 'text-left sm:text-right' : 'text-right'}>
               <div className="text-xs uppercase opacity-70 mb-1">Currency</div>
               {isEditing ? (
-                 <div className="flex justify-end">
+                 <div className="flex justify-start sm:justify-end">
                     <Select value={invoice.currency} onValueChange={(value) => setInvoice(prev => ({...prev, currency: value}))}>
                       <SelectTrigger className="w-32 bg-white/10 border-none text-white h-8">
                         <SelectValue />
@@ -102,7 +102,7 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
         </div>
       </div>
 
-      <div className="p-8 flex-1 bg-white rounded-b-xl border-x border-b border-gray-100 shadow-sm">
+      <div className={`flex-1 bg-white rounded-b-xl border-x border-b border-gray-100 shadow-sm ${isEditing ? 'p-4 sm:p-8' : 'p-8'}`}>
         {/* Buyer Section */}
         <div className="mb-12">
            <div className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">{layout.labels.billTo || 'Bill To'}</div>
@@ -145,7 +145,7 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
                     <div className="space-y-2">
                        <Label>Address</Label>
                        <Input value={invoice.buyer.address?.street || ''} onChange={e => handleAddressChange('buyer', 'street', e.target.value)} placeholder="Street" />
-                       <div className="grid grid-cols-2 gap-2">
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <Input value={invoice.buyer.address?.city || ''} onChange={e => handleAddressChange('buyer', 'city', e.target.value)} placeholder="City" />
                           <Input value={invoice.buyer.address?.postcode || ''} onChange={e => handleAddressChange('buyer', 'postcode', e.target.value)} placeholder="Postcode" />
                        </div>
@@ -178,8 +178,9 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
               )}
            </div>
            
-           <table className="w-full">
-              <thead>
+           <div className="overflow-x-auto">
+              <table className="w-full min-w-[800px]">
+                 <thead>
                  <tr className="border-b-2 border-gray-100 text-left">
                     <th className="py-3 font-semibold text-gray-500 text-sm">Description</th>
                     <th className="py-3 font-semibold text-gray-500 text-sm w-24 text-center">Qty</th>
@@ -205,10 +206,10 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
                           )}
                        </td>
                        <td className="py-4 text-center">
-                          {isEditing ? <Input type="number" value={line.quantity} onChange={e => handleLineChange(index, 'quantity', e.target.value)} className="w-20 text-center mx-auto" /> : <span className="text-gray-600">{line.quantity}</span>}
+                          {isEditing ? <Input type="number" value={line.quantity} onChange={e => handleLineChange(index, 'quantity', e.target.value)} className="w-24 min-w-[80px] text-center mx-auto" /> : <span className="text-gray-600">{line.quantity}</span>}
                        </td>
                        <td className="py-4 text-right">
-                          {isEditing ? <Input type="number" value={line.unitPrice} onChange={e => handleLineChange(index, 'unitPrice', e.target.value)} className="w-24 ml-auto text-right" /> : <span className="text-gray-600">{line.unitPrice.toFixed(2)}</span>}
+                          {isEditing ? <Input type="number" value={line.unitPrice} onChange={e => handleLineChange(index, 'unitPrice', e.target.value)} className="w-28 min-w-[100px] ml-auto text-right" /> : <span className="text-gray-600">{line.unitPrice.toFixed(2)}</span>}
                        </td>
                        <td className="py-4 text-right font-bold text-gray-900">
                           {line.amount.toFixed(2)}
@@ -224,11 +225,12 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
                  ))}
               </tbody>
            </table>
+           </div>
         </div>
 
         {/* Totals */}
         <div className="flex justify-end">
-           <div className="w-80 space-y-3">
+           <div className={`space-y-3 ${isEditing ? 'w-full sm:w-80' : 'w-80'}`}>
               <div className="flex justify-between text-gray-500">
                  <span>Subtotal</span>
                  <span>{invoice.totals.lineTotalAmount.toFixed(2)}</span>

@@ -11,9 +11,9 @@ export function StandardLayout({ invoice, layout, isEditing, handlers }: LayoutP
   const { handlePartyChange, handleAddressChange, handleLineChange, handleLookup, lookupParty, isLookingUp, addLineItem, removeLineItem, setInvoice } = handlers;
 
   return (
-    <div className="space-y-12 font-sans" style={{ fontFamily: layout.font.body }}>
+    <div className={`space-y-12 font-sans ${!isEditing ? 'min-w-[800px]' : ''}`} style={{ fontFamily: layout.font.body }}>
       {/* Top Section: Meta Info */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-gray-50 p-6 rounded-lg" style={{ backgroundColor: layout.colors.secondary }}>
+      <div className={`grid gap-6 bg-gray-50 p-6 rounded-lg ${isEditing ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-4'}`} style={{ backgroundColor: layout.colors.secondary }}>
         <div>
           <Label className="text-gray-500 text-xs uppercase" style={{ color: layout.colors.text }}>{layout.labels.invoiceTitle || 'Invoice Number'}</Label>
           {isEditing ? (
@@ -58,7 +58,7 @@ export function StandardLayout({ invoice, layout, isEditing, handlers }: LayoutP
       </div>
 
       {/* Parties Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+      <div className={`grid gap-12 ${isEditing ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-2'}`}>
         {/* Seller Details */}
         <div className="space-y-4">
           <h3 className="text-lg font-bold border-b pb-2" style={{ color: layout.colors.primary, borderColor: layout.colors.secondary }}>Seller (Supplier)</h3>
@@ -103,8 +103,8 @@ export function StandardLayout({ invoice, layout, isEditing, handlers }: LayoutP
               <Label className="text-gray-500 text-xs uppercase">Tax ID / VAT Number</Label>
               {isEditing ? <Input value={invoice.seller.taxId || ''} onChange={e => handlePartyChange('seller', 'taxId', e.target.value)} className="mt-1" /> : <p className="font-medium">{invoice.seller.taxId || 'N/A'}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
+            <div className={`grid gap-4 ${isEditing ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2'}`}>
+              <div className={isEditing ? 'col-span-1 sm:col-span-2' : 'col-span-2'}>
                 <Label className="text-gray-500 text-xs uppercase">Street</Label>
                 {isEditing ? <Input value={invoice.seller.address?.street || ''} onChange={e => handleAddressChange('seller', 'street', e.target.value)} className="mt-1" /> : <p className="font-medium">{invoice.seller.address?.street}</p>}
               </div>
@@ -116,7 +116,7 @@ export function StandardLayout({ invoice, layout, isEditing, handlers }: LayoutP
                 <Label className="text-gray-500 text-xs uppercase">Postcode</Label>
                 {isEditing ? <Input value={invoice.seller.address?.postcode || ''} onChange={e => handleAddressChange('seller', 'postcode', e.target.value)} className="mt-1" /> : <p className="font-medium">{invoice.seller.address?.postcode}</p>}
               </div>
-              <div className="col-span-2">
+              <div className={isEditing ? 'col-span-1 sm:col-span-2' : 'col-span-2'}>
                 <Label className="text-gray-500 text-xs uppercase">Country (ISO 3166-1)</Label>
                 {isEditing ? (
                   <Select value={invoice.seller.address?.countryCode || ''} onValueChange={(value) => handleAddressChange('seller', 'countryCode', value)}>
@@ -179,8 +179,8 @@ export function StandardLayout({ invoice, layout, isEditing, handlers }: LayoutP
               <Label className="text-gray-500 text-xs uppercase">Tax ID / VAT Number</Label>
               {isEditing ? <Input value={invoice.buyer.taxId || ''} onChange={e => handlePartyChange('buyer', 'taxId', e.target.value)} className="mt-1" /> : <p className="font-medium">{invoice.buyer.taxId || 'N/A'}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
+            <div className={`grid gap-4 ${isEditing ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2'}`}>
+              <div className={isEditing ? 'col-span-1 sm:col-span-2' : 'col-span-2'}>
                 <Label className="text-gray-500 text-xs uppercase">Street</Label>
                 {isEditing ? <Input value={invoice.buyer.address?.street || ''} onChange={e => handleAddressChange('buyer', 'street', e.target.value)} className="mt-1" /> : <p className="font-medium">{invoice.buyer.address?.street}</p>}
               </div>
@@ -192,7 +192,7 @@ export function StandardLayout({ invoice, layout, isEditing, handlers }: LayoutP
                 <Label className="text-gray-500 text-xs uppercase">Postcode</Label>
                 {isEditing ? <Input value={invoice.buyer.address?.postcode || ''} onChange={e => handleAddressChange('buyer', 'postcode', e.target.value)} className="mt-1" /> : <p className="font-medium">{invoice.buyer.address?.postcode}</p>}
               </div>
-              <div className="col-span-2">
+              <div className={isEditing ? 'col-span-1 sm:col-span-2' : 'col-span-2'}>
                 <Label className="text-gray-500 text-xs uppercase">Country (ISO 3166-1)</Label>
                 {isEditing ? (
                   <Select value={invoice.buyer.address?.countryCode || ''} onValueChange={(value) => handleAddressChange('buyer', 'countryCode', value)}>
@@ -224,15 +224,15 @@ export function StandardLayout({ invoice, layout, isEditing, handlers }: LayoutP
         </div>
         
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
+          <table className="w-full min-w-[800px] text-sm text-left">
             <thead className="text-xs uppercase" style={{ backgroundColor: layout.colors.secondary, color: layout.colors.text }}>
               <tr>
                 <th className="px-4 py-3 min-w-[200px]">Description</th>
-                <th className="px-4 py-3 w-32" title="Harmonized System Code for customs">HS Code</th>
+                <th className="px-4 py-3 w-40 min-w-[120px]" title="Harmonized System Code for customs">HS Code</th>
                 <th className="px-4 py-3 w-24">Qty</th>
-                <th className="px-4 py-3 w-24" title="UN/CEFACT Rec 20">Unit</th>
+                <th className="px-4 py-3 w-32 min-w-[100px]" title="UN/CEFACT Rec 20">Unit</th>
                 <th className="px-4 py-3 w-32">Price</th>
-                <th className="px-4 py-3 w-24">Tax %</th>
+                <th className="px-4 py-3 w-20 min-w-[60px]">Tax %</th>
                 <th className="px-4 py-3 w-32 text-right">Amount</th>
                 {isEditing && <th className="px-4 py-3 w-16"></th>}
               </tr>
@@ -244,19 +244,19 @@ export function StandardLayout({ invoice, layout, isEditing, handlers }: LayoutP
                     {isEditing ? <Input value={line.name} onChange={e => handleLineChange(index, 'name', e.target.value)} className="h-8" /> : line.name}
                   </td>
                   <td className="px-4 py-3">
-                    {isEditing ? <Input value={line.hsCode || ''} onChange={e => handleLineChange(index, 'hsCode', e.target.value)} className="h-8" placeholder="e.g. 8517.62" /> : (line.hsCode || '-')}
+                    {isEditing ? <Input value={line.hsCode || ''} onChange={e => handleLineChange(index, 'hsCode', e.target.value)} className="h-8 min-w-[120px]" placeholder="e.g. 8517.62" /> : (line.hsCode || '-')}
                   </td>
                   <td className="px-4 py-3">
-                    {isEditing ? <Input type="number" min="1" step="1" value={line.quantity} onChange={e => handleLineChange(index, 'quantity', e.target.value)} className="h-8" /> : line.quantity}
+                    {isEditing ? <Input type="number" min="1" step="1" value={line.quantity} onChange={e => handleLineChange(index, 'quantity', e.target.value)} className="h-8 min-w-[80px]" /> : line.quantity}
                   </td>
                   <td className="px-4 py-3">
-                    {isEditing ? <Input value={line.unitCode} onChange={e => handleLineChange(index, 'unitCode', e.target.value)} className="h-8" title="e.g. C62 (pieces), H87 (hours)" /> : line.unitCode}
+                    {isEditing ? <Input value={line.unitCode} onChange={e => handleLineChange(index, 'unitCode', e.target.value)} className="h-8 min-w-[100px]" title="e.g. C62 (pieces), H87 (hours)" /> : line.unitCode}
                   </td>
                   <td className="px-4 py-3">
-                    {isEditing ? <Input type="number" min="0" step="0.01" value={line.unitPrice} onChange={e => handleLineChange(index, 'unitPrice', e.target.value)} className="h-8" /> : line.unitPrice.toFixed(2)}
+                    {isEditing ? <Input type="number" min="0" step="0.01" value={line.unitPrice} onChange={e => handleLineChange(index, 'unitPrice', e.target.value)} className="h-8 min-w-[100px]" /> : line.unitPrice.toFixed(2)}
                   </td>
                   <td className="px-4 py-3">
-                    {isEditing ? <Input type="number" min="0" step="0.1" value={line.taxRate || 0} onChange={e => handleLineChange(index, 'taxRate', e.target.value)} className="h-8" /> : `${line.taxRate || 0}%`}
+                    {isEditing ? <Input type="number" min="0" step="0.1" value={line.taxRate || 0} onChange={e => handleLineChange(index, 'taxRate', e.target.value)} className="h-8 min-w-[60px]" /> : `${line.taxRate || 0}%`}
                   </td>
                   <td className="px-4 py-3 text-right font-medium">
                     {line.amount.toFixed(2)}
