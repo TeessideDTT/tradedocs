@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Invoice, InvoiceLine } from '@/lib/uncefact/models';
+import { Invoice, InvoiceLine, PackingList, PackingListLine, TradeDocument } from '@/lib/uncefact/models';
 import { InvoiceLayout } from '@/lib/uncefact/layout';
 import { StandardLayout } from './layouts/StandardLayout';
 import { ModernLayout } from './layouts/ModernLayout';
 import { MinimalLayout } from './layouts/MinimalLayout';
-import { InvoiceHandlers } from './layouts/types';
+import { DocumentHandlers } from './layouts/types';
 import { fetchCompanyDetails, fetchCityFromPostcode } from '@/lib/uncefact/api';
 import { CheckCircle2, AlertCircle, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface InvoiceFormProps {
-  invoice: Invoice;
+  document: TradeDocument;
   layout: InvoiceLayout;
   isEditing: boolean;
-  setInvoice: React.Dispatch<React.SetStateAction<Invoice>>;
+  setDocument: React.Dispatch<React.SetStateAction<TradeDocument>>;
 }
 
-export function InvoiceForm({ invoice, layout, isEditing, setInvoice }: InvoiceFormProps) {
+export function InvoiceForm({ document: doc, layout, isEditing, setDocument }: InvoiceFormProps) {
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupParty, setLookupParty] = useState<'seller' | 'buyer' | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -30,6 +30,9 @@ export function InvoiceForm({ invoice, layout, isEditing, setInvoice }: InvoiceF
     }
   } | null>(null);
 
+  const isInvoice = doc.type === 'invoice';
+  const data = doc.data;
+
   const mapCountryToCode = (countryName: string): string => {
     const name = countryName.toLowerCase();
     const gbCountries = ['england', 'scotland', 'wales', 'northern ireland', 'united kingdom', 'gb'];
@@ -41,14 +44,14 @@ export function InvoiceForm({ invoice, layout, isEditing, setInvoice }: InvoiceF
 
   // Debounced postcode lookup for seller
   useEffect(() => {
-    const postcode = invoice.seller.address?.postcode;
-    const country = invoice.seller.address?.countryCode;
+    const postcode = data.seller.address?.postcode;
+    const country = data.seller.address?.countryCode;
     
     if (!postcode || !country || postcode.length < 3) return;
 
     const timer = setTimeout(async () => {
       // Only auto-fill if city is empty
-      if (!invoice.seller.address?.city) {
+      if (!data.seller.address?.city) {
         const city = await fetchCityFromPostcode(postcode, country);
         if (city) {
           handleAddressChange('seller', 'city', city);
@@ -57,18 +60,18 @@ export function InvoiceForm({ invoice, layout, isEditing, setInvoice }: InvoiceF
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [invoice.seller.address?.postcode, invoice.seller.address?.countryCode]);
+  }, [data.seller.address?.postcode, data.seller.address?.countryCode]);
 
   // Debounced postcode lookup for buyer
   useEffect(() => {
-    const postcode = invoice.buyer.address?.postcode;
-    const country = invoice.buyer.address?.countryCode;
+    const postcode = data.buyer.address?.postcode;
+    const country = data.buyer.address?.countryCode;
     
     if (!postcode || !country || postcode.length < 3) return;
 
     const timer = setTimeout(async () => {
       // Only auto-fill if city is empty
-      if (!invoice.buyer.address?.city) {
+      if (!data.buyer.address?.city) {
         const city = await fetchCityFromPostcode(postcode, country);
         if (city) {
           handleAddressChange('buyer', 'city', city);
@@ -77,31 +80,36 @@ export function InvoiceForm({ invoice, layout, isEditing, setInvoice }: InvoiceF
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [invoice.buyer.address?.postcode, invoice.buyer.address?.countryCode]);
+  }, [data.buyer.address?.postcode, data.buyer.address?.countryCode]);
 
   const handlePartyChange = (party: 'seller' | 'buyer', field: string, value: string) => {
-    setInvoice(prev => ({
+    setDocument((prev: any) => ({
       ...prev,
-      [party]: { ...prev[party], [field]: value }
-    }));
-  };
-
-  const handleAddressChange = (party: 'seller' | 'buyer', field: string, value: string) => {
-    setInvoice(prev => ({
-      ...prev,
-      [party]: {
-        ...prev[party],
-        address: { ...(prev[party].address || { countryCode: '' }), [field]: value }
+      data: {
+        ...prev.data,
+        [party]: { ...prev.data[party], [field]: value }
       }
     }));
   };
 
-  const handleLineChange = (index: number, field: keyof InvoiceLine, value: any) => {
-    setInvoice(prev => {
-      const newLines = [...prev.lines];
+  const handleAddressChange = (party: 'seller' | 'buyer', field: string, value: string) => {
+    setDocument((prev: any) => ({
+      ...prev,
+      data: {
+        ...prev.data,
+        [party]: {
+          ...prev.data[party],
+          address: { ...(prev.data[party].address || { countryCode: '' }), [field]: value }
+        }
+      }
+    }));
+  };
 
+  const handleLineChange = (index: number, field: string, value: any) => {
+    setDocument(prev => {
+      const newLines = [...prev.data.lines] as any[];
       let parsedValue = value;
-      // Enforce number boundaries
+
       if (field === 'quantity') {
         parsedValue = Math.max(1, parseFloat(value) || 1);
       } else if (field === 'unitPrice' || field === 'taxRate') {
@@ -110,36 +118,112 @@ export function InvoiceForm({ invoice, layout, isEditing, setInvoice }: InvoiceF
 
       newLines[index] = { ...newLines[index], [field]: parsedValue };
 
-      // Auto-calculate amount for the line item
-      if (field === 'quantity' || field === 'unitPrice') {
-        const qty = newLines[index].quantity || 1;
-        const price = newLines[index].unitPrice || 0;
-        newLines[index].amount = qty * price;
+      // Calculate totals for invoice line
+      if (prev.type === 'invoice') {
+        if (field === 'quantity' || field === 'unitPrice') {
+          const qty = newLines[index].quantity || 1;
+          const price = newLines[index].unitPrice || 0;
+          newLines[index].amount = qty * price;
+        }
+
+        // Recalculate totals for invoice
+        const lineTotal = newLines.reduce((sum, line) => sum + (line.amount || 0), 0);
+        const taxTotal = newLines.reduce((sum, line) => sum + ((line.amount || 0) * (line.taxRate || 0) / 100), 0);
+        const grandTotal = lineTotal + taxTotal;
+
+        return {
+          ...prev,
+          data: {
+            ...prev.data,
+            lines: newLines,
+            totals: {
+              lineTotalAmount: lineTotal,
+              taxTotalAmount: taxTotal,
+              grandTotalAmount: grandTotal,
+              duePayableAmount: grandTotal
+            }
+          }
+        };
       }
 
-      return { ...prev, lines: newLines };
+      return {
+        ...prev,
+        data: {
+          ...prev.data,
+          lines: newLines
+        }
+      };
     });
   };
 
   const addLineItem = () => {
-    setInvoice(prev => ({
-      ...prev,
-      lines: [
-        ...prev.lines,
-        { id: Math.random().toString(36).substr(2, 9), name: 'New Item', quantity: 1, unitCode: 'C62', unitPrice: 0, amount: 0, taxCategoryCode: 'S', taxRate: 0, hsCode: '' }
-      ]
-    }));
+    setDocument(prev => {
+      if (prev.type === 'invoice') {
+        const newLine = { id: Math.random().toString(36).substr(2, 9), name: 'New Item', quantity: 1, unitCode: 'C62', unitPrice: 0, amount: 0, taxCategoryCode: 'S', taxRate: 0, hsCode: '' };
+        const newLines = [...prev.data.lines, newLine];
+        const lineTotal = newLines.reduce((sum, line) => sum + (line.amount || 0), 0);
+        const taxTotal = newLines.reduce((sum, line) => sum + ((line.amount || 0) * (line.taxRate || 0) / 100), 0);
+        const grandTotal = lineTotal + taxTotal;
+        return {
+          ...prev,
+          data: {
+            ...prev.data,
+            lines: newLines,
+            totals: {
+              lineTotalAmount: lineTotal,
+              taxTotalAmount: taxTotal,
+              grandTotalAmount: grandTotal,
+              duePayableAmount: grandTotal
+            }
+          }
+        };
+      } else {
+        const newLine = { id: Math.random().toString(36).substr(2, 9), name: 'New Item', quantity: 1, unitCode: 'C62', hsCode: '' };
+        return {
+          ...prev,
+          data: {
+            ...prev.data,
+            lines: [...prev.data.lines, newLine]
+          }
+        };
+      }
+    });
   };
 
   const removeLineItem = (index: number) => {
-    setInvoice(prev => ({
-      ...prev,
-      lines: prev.lines.filter((_, i) => i !== index)
-    }));
+    setDocument(prev => {
+      const newLines = prev.data.lines.filter((_, i) => i !== index);
+      if (prev.type === 'invoice') {
+        const lineTotal = newLines.reduce((sum, line) => sum + ((line as InvoiceLine).amount || 0), 0);
+        const taxTotal = newLines.reduce((sum, line) => sum + (((line as InvoiceLine).amount || 0) * ((line as InvoiceLine).taxRate || 0) / 100), 0);
+        const grandTotal = lineTotal + taxTotal;
+        return {
+          ...prev,
+          data: {
+            ...prev.data,
+            lines: newLines as InvoiceLine[],
+            totals: {
+              lineTotalAmount: lineTotal,
+              taxTotalAmount: taxTotal,
+              grandTotalAmount: grandTotal,
+              duePayableAmount: grandTotal
+            }
+          }
+        };
+      } else {
+        return {
+          ...prev,
+          data: {
+            ...prev.data,
+            lines: newLines as PackingListLine[]
+          }
+        };
+      }
+    });
   };
 
   const handleLookup = async (party: 'seller' | 'buyer') => {
-    const companyId = invoice[party].id;
+    const companyId = data[party].id;
     if (!companyId) return;
 
     setIsLookingUp(true);
@@ -150,17 +234,20 @@ export function InvoiceForm({ invoice, layout, isEditing, setInvoice }: InvoiceF
       if (details) {
         const countryCode = mapCountryToCode(details.registered_address_country);
 
-        setInvoice(prev => ({
+        setDocument((prev: any) => ({
           ...prev,
-          [party]: {
-            ...prev[party],
-            name: details.name,
-            address: {
-              ...prev[party].address,
-              street: (details.registered_address_street_address || '').replace(/\\n/g, ' ').replace(/\n/g, ' '),
-              postcode: details.registered_address_postal_code || '',
-              city: details.city || prev[party].address?.city || '',
-              countryCode: countryCode
+          data: {
+            ...prev.data,
+            [party]: {
+              ...prev.data[party],
+              name: details.name,
+              address: {
+                ...prev.data[party].address,
+                street: (details.registered_address_street_address || '').replace(/\\n/g, ' ').replace(/\n/g, ' '),
+                postcode: details.registered_address_postal_code || '',
+                city: details.city || prev.data[party].address?.city || '',
+                countryCode: countryCode
+              }
             }
           }
         }));
@@ -196,7 +283,7 @@ export function InvoiceForm({ invoice, layout, isEditing, setInvoice }: InvoiceF
     }
   };
 
-  const handlers: InvoiceHandlers = {
+  const handlers: DocumentHandlers = {
     handlePartyChange,
     handleAddressChange,
     handleLineChange,
@@ -205,7 +292,7 @@ export function InvoiceForm({ invoice, layout, isEditing, setInvoice }: InvoiceF
     isLookingUp,
     addLineItem,
     removeLineItem,
-    setInvoice
+    setDocument
   };
 
   const renderModal = () => {
@@ -261,14 +348,14 @@ export function InvoiceForm({ invoice, layout, isEditing, setInvoice }: InvoiceF
 
   const layoutElement = (() => {
     if (layout.id === 'us-corporate') {
-      return <ModernLayout invoice={invoice} layout={layout} isEditing={isEditing} handlers={handlers} />;
+      return <ModernLayout document={doc} layout={layout} isEditing={isEditing} handlers={handlers} />;
     }
 
     if (layout.id === 'de-standard') {
-      return <MinimalLayout invoice={invoice} layout={layout} isEditing={isEditing} handlers={handlers} />;
+      return <MinimalLayout document={doc} layout={layout} isEditing={isEditing} handlers={handlers} />;
     }
 
-    return <StandardLayout invoice={invoice} layout={layout} isEditing={isEditing} handlers={handlers} />;
+    return <StandardLayout document={doc} layout={layout} isEditing={isEditing} handlers={handlers} />;
   })();
 
   return (

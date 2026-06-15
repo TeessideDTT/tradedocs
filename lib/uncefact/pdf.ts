@@ -1,30 +1,113 @@
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, PDFName, decodePDFRawStream } from 'pdf-lib';
 import { getDocumentProxy } from 'unpdf';
-import { Invoice } from './models';
+import { Invoice, PackingList, TradeDocument } from './models';
 import { InvoiceLayout, UK_LAYOUT } from './layout';
-import { generateCIIXML } from './xml';
-import { invoiceToJsonLd, jsonLdToInvoice } from './jsonld';
+import { generateInvoiceXML, generatePackingListXML } from './xml';
+import { invoiceToJsonLd, jsonLdToInvoice, packingListToJsonLd, jsonLdToPackingList } from './jsonld';
 import * as htmlToImage from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import stringify from 'json-stringify-deterministic';
+import { storage } from '#imports';
+
+function wrapCdata(value: string): string {
+  return value.replaceAll(']]>', ']]]]><![CDATA[>');
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;');
+}
+
+function buildVerificationXmpMetadata(
+  jsonLdStr: string,
+  invoice: Invoice,
+  layoutId: string,
+  hash?: string,
+  timestamp?: string,
+  ciiXmlStr?: string,
+) {
+  const metadataDate = new Date().toISOString();
+  const invoiceId = escapeXml(invoice.id);
+  const currency = escapeXml(invoice.currency);
+  const safeLayoutId = escapeXml(layoutId);
+  const safeHash = hash ? escapeXml(hash) : '';
+  const safeTimestamp = timestamp ? escapeXml(timestamp) : '';
+
+  return `<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/">
+  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <rdf:Description rdf:about=""
+      xmlns:xmp="http://ns.adobe.com/xap/1.0/"
+      xmlns:pdf="http://ns.adobe.com/pdf/1.3/"
+      xmlns:dc="http://purl.org/dc/elements/1.1/"
+      xmlns:tradedocs="https://tradedocs.app/ns/pdf/1.0/">
+      <xmp:MetadataDate>${metadataDate}</xmp:MetadataDate>
+      <xmp:ModifyDate>${metadataDate}</xmp:ModifyDate>
+      <pdf:Producer>TradeDocs</pdf:Producer>
+      <dc:format>application/pdf</dc:format>
+      <dc:title>
+        <rdf:Alt>
+          <rdf:li xml:lang="x-default">Invoice ${invoiceId}</rdf:li>
+        </rdf:Alt>
+      </dc:title>
+      <tradedocs:invoiceId>${invoiceId}</tradedocs:invoiceId>
+      <tradedocs:currency>${currency}</tradedocs:currency>
+      <tradedocs:layoutId>${safeLayoutId}</tradedocs:layoutId>
+      ${hash ? `<tradedocs:verificationHash>${safeHash}</tradedocs:verificationHash>` : ''}
+      ${timestamp ? `<tradedocs:verificationTimestamp>${safeTimestamp}</tradedocs:verificationTimestamp>` : ''}
+      <tradedocs:jsonld><![CDATA[${wrapCdata(jsonLdStr)}]]></tradedocs:jsonld>
+      ${ciiXmlStr ? `<tradedocs:ciiXml><![CDATA[${wrapCdata(ciiXmlStr)}]]></tradedocs:ciiXml>` : ''}
+    </rdf:Description>
+  </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end="w"?>`;
+}
+
+function setPdfXmpMetadata(pdfDoc: PDFDocument, xmpMetadata: string) {
+  const metadataStream = pdfDoc.context.stream(xmpMetadata, {
+    Type: 'Metadata',
+    Subtype: 'XML',
+  });
+  const metadataRef = pdfDoc.context.register(metadataStream);
+  pdfDoc.catalog.set(PDFName.of('Metadata'), metadataRef);
+}
 
 export async function generateInvoicePdf(
-  invoice: Invoice,
+  doc: TradeDocument,
   layout: InvoiceLayout = UK_LAYOUT,
   elementToCapture?: HTMLElement | null,
-  wasEdited: boolean = false
+  options: {
+    wasEdited?: boolean;
+    isTemplate?: boolean;
+    hasExistingVerification?: boolean;
+    existingVerificationHash?: string;
+    existingVerificationTimestamp?: string;
+  } = {}
 ): Promise<Uint8Array> {
-  
   let basePdfBytes: ArrayBuffer;
 
-  let hashHex: string | undefined;
-  let timestamp: string | undefined;
+  const {
+    wasEdited = false,
+    isTemplate = false,
+    hasExistingVerification = false,
+    existingVerificationHash,
+    existingVerificationTimestamp,
+  } = options;
 
-  if (wasEdited) {
+  let hashHex = existingVerificationHash;
+  let timestamp = existingVerificationTimestamp;
+
+  const shouldGenerateVerification = !isTemplate && (wasEdited || !hasExistingVerification);
+
+  if (shouldGenerateVerification) {
     timestamp = new Date().toISOString();
-    const invoiceJson = stringify({ ...invoice, timestamp });
-    const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(invoiceJson));
+    const docJson = stringify({ ...doc.data, timestamp });
+    const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(docJson));
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   }
@@ -44,13 +127,11 @@ export async function generateInvoicePdf(
       format: 'a4'
     });
     
-    // We need to calculate dimensions manually because the base64 doesn't give us raw element sizes
-    // We'll use the element's actual DOM sizes to determine aspect ratio
+    // Calculate dimensions manually
     const elementWidth = elementToCapture.offsetWidth;
     const elementHeight = elementToCapture.offsetHeight;
     
     const pdfWidth = pdf.internal.pageSize.getWidth();
-    // Scale height proportionally to fit the PDF width
     const pdfHeight = (elementHeight * pdfWidth) / elementWidth;
     
     pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
@@ -60,9 +141,9 @@ export async function generateInvoicePdf(
       const qrData = `Document Hash: ${hashHex}\nGenerated: ${timestamp}`;
       const qrDataUrl = await QRCode.toDataURL(qrData, { margin: 1, scale: 4 });
       
-      const qrSize = 50; // Size of the QR code square in points
-      const x = pdfWidth - qrSize - 20; // 20pt margin from right
-      const y = pageHeight - qrSize - 20; // 20pt margin from bottom
+      const qrSize = 50; 
+      const x = pdfWidth - qrSize - 20; 
+      const y = pageHeight - qrSize - 20; 
       
       pdf.addImage(qrDataUrl, 'PNG', x, y, qrSize, qrSize);
     }
@@ -73,45 +154,71 @@ export async function generateInvoicePdf(
     const fallbackPdf = await PDFDocument.create();
     fallbackPdf.addPage();
     const fallbackBytes = await fallbackPdf.save();
-    // Convert Uint8Array to ArrayBuffer safely
     basePdfBytes = fallbackBytes.buffer.slice(fallbackBytes.byteOffset, fallbackBytes.byteOffset + fallbackBytes.byteLength) as ArrayBuffer;
   }
 
   // Load the generated PDF into pdf-lib to attach metadata
   const pdfDoc = await PDFDocument.load(basePdfBytes);
 
-  // Embed JSON-LD and CII XML for PDF/A-3 Compliance
-  const ciiXmlStr = generateCIIXML(invoice);
-  const jsonLdStr = invoiceToJsonLd(invoice, hashHex, timestamp);
+  // Retrieve user's preferred export mode from storage
+  const exportMode = await storage.getItem<string>('local:pdf_export_mode') || 'both';
 
-  await pdfDoc.attach(new TextEncoder().encode(ciiXmlStr), 'factur-x.xml', {
-    mimeType: 'application/xml',
-    description: 'UN/CEFACT Cross Industry Invoice (CII)',
-    creationDate: new Date(),
-    modificationDate: new Date(),
-  });
+  // Embed JSON-LD and CII XML depending on configuration
+  const ciiXmlStr = doc.type === 'invoice' ? generateInvoiceXML(doc.data) : generatePackingListXML(doc.data);
+  const jsonLdStr = doc.type === 'invoice' ? invoiceToJsonLd(doc.data, hashHex, timestamp) : packingListToJsonLd(doc.data, hashHex, timestamp);
 
-  await pdfDoc.attach(new TextEncoder().encode(jsonLdStr), 'metadata.jsonld', {
-    mimeType: 'application/ld+json',
-    description: 'Schema.org JSON-LD Metadata',
-    creationDate: new Date(),
-    modificationDate: new Date(),
-  });
+  if (exportMode === 'metadata' || exportMode === 'both') {
+    const includeXmlInMeta = exportMode === 'metadata';
+    const xmpMetadata = buildVerificationXmpMetadata(
+      jsonLdStr,
+      doc.data as any,
+      layout.id,
+      hashHex,
+      timestamp,
+      includeXmlInMeta ? ciiXmlStr : undefined
+    );
+    setPdfXmpMetadata(pdfDoc, xmpMetadata);
+  }
 
-  const tradedocsMeta = JSON.stringify({ layoutId: layout.id });
-  await pdfDoc.attach(new TextEncoder().encode(tradedocsMeta), 'tradedocs.json', {
-    mimeType: 'application/json',
-    description: 'TradeDocs App Metadata',
-    creationDate: new Date(),
-    modificationDate: new Date(),
-  });
+  if (exportMode === 'attachment' || exportMode === 'both') {
+    await pdfDoc.attach(new TextEncoder().encode(ciiXmlStr), doc.type === 'invoice' ? 'factur-x.xml' : 'packing-list-cii.xml', {
+      mimeType: 'application/xml',
+      description: doc.type === 'invoice' ? 'UN/CEFACT Cross Industry Invoice (CII)' : 'UN/CEFACT CII Packing List',
+      creationDate: new Date(),
+      modificationDate: new Date(),
+    });
+
+    await pdfDoc.attach(new TextEncoder().encode(jsonLdStr), 'metadata.jsonld', {
+      mimeType: 'application/ld+json',
+      description: 'Schema.org JSON-LD Metadata',
+      creationDate: new Date(),
+      modificationDate: new Date(),
+    });
+
+    const tradedocsMeta = JSON.stringify({ layoutId: layout.id, documentType: doc.type });
+    await pdfDoc.attach(new TextEncoder().encode(tradedocsMeta), 'tradedocs.json', {
+      mimeType: 'application/json',
+      description: 'TradeDocs App Metadata',
+      creationDate: new Date(),
+      modificationDate: new Date(),
+    });
+  }
 
   const finalPdfBytes = await pdfDoc.save();
 
   return finalPdfBytes;
 }
 
-export async function extractInvoiceDataFromPdf(fileBuffer: ArrayBuffer): Promise<{ invoice: Partial<Invoice>, layoutId?: string, isTampered?: boolean, hasVerification?: boolean }> {
+export async function extractInvoiceDataFromPdf(fileBuffer: ArrayBuffer): Promise<{
+  document: TradeDocument,
+  layoutId?: string,
+  isTampered?: boolean,
+  hasVerification?: boolean,
+  verificationHash?: string,
+  verificationTimestamp?: string
+}> {
+  const fileBufferCopy = fileBuffer.slice(0);
+
   let pdf;
   try {
     const uint8Array = new Uint8Array(fileBuffer);
@@ -120,50 +227,119 @@ export async function extractInvoiceDataFromPdf(fileBuffer: ArrayBuffer): Promis
     throw new Error("Invalid or corrupted PDF file.");
   }
   
-  // PDF/A-3 stores files in the Attachments (EmbeddedFiles) tree
-  const attachments = await pdf.getAttachments();
-  
-  if (!attachments || Object.keys(attachments).length === 0) {
-     throw new Error("No attachments found in this PDF. Please ensure it is a valid PDF/A-3 document with embedded metadata.");
-  }
-  
-  // Look for any file ending in .jsonld or metadata.jsonld (exclude tradedocs.json)
-  const jsonFileName = Object.keys(attachments).find(name => name.endsWith('.jsonld') || (name.endsWith('.json') && name !== 'tradedocs.json'));
-  
-  if (!jsonFileName) {
-      throw new Error("No JSON-LD metadata attachment found. Ensure the document was exported with TradeDocs or contains standard 'metadata.jsonld'.");
+  let jsonLdString = '';
+  let layoutId: string | undefined;
+
+  // 1. Try to read from PDF/A-3 Attachments first
+  let attachments;
+  try {
+    attachments = await pdf.getAttachments();
+  } catch (e) {
+    console.warn("Failed to read attachments, trying XMP metadata fallback", e);
   }
 
-  let layoutId: string | undefined;
-  if (attachments['tradedocs.json']) {
-    try {
-      const tdMetaStr = new TextDecoder().decode(attachments['tradedocs.json'].content);
-      const parsed = JSON.parse(tdMetaStr);
-      layoutId = parsed.layoutId;
-    } catch (e) {
-      console.warn("Could not parse tradedocs.json metadata", e);
+  if (attachments && Object.keys(attachments).length > 0) {
+    const jsonFileName = Object.keys(attachments).find(name => name.endsWith('.jsonld') || (name.endsWith('.json') && name !== 'tradedocs.json'));
+    if (jsonFileName) {
+      try {
+        const attachment = attachments[jsonFileName];
+        jsonLdString = new TextDecoder().decode(attachment.content);
+      } catch (e) {
+        console.warn("Failed to decode JSON-LD attachment content", e);
+      }
     }
+    if (attachments['tradedocs.json']) {
+      try {
+        const tdMetaStr = new TextDecoder().decode(attachments['tradedocs.json'].content);
+        const parsed = JSON.parse(tdMetaStr);
+        layoutId = parsed.layoutId;
+      } catch (e) {
+        console.warn("Could not parse tradedocs.json metadata", e);
+      }
+    }
+  }
+
+  // 2. Fall back to parsing the XMP stream
+  if (!jsonLdString) {
+    let rawXmp = '';
+    try {
+      const pdfDoc = await PDFDocument.load(fileBufferCopy);
+      const catalog = pdfDoc.catalog;
+      const metadataRef = catalog.get(PDFName.of('Metadata'));
+      if (metadataRef) {
+        const stream = pdfDoc.context.lookup(metadataRef);
+        if (stream && typeof (stream as any).getContents === 'function') {
+          const contents = (stream as any).getContents();
+          const filter = (stream as any).dict?.get(PDFName.of('Filter'));
+          if (filter === PDFName.of('FlateDecode')) {
+            try {
+              const decodedStream = decodePDFRawStream(stream as any);
+              const bytes = (decodedStream as any).getBytes();
+              rawXmp = new TextDecoder('utf-8').decode(bytes);
+            } catch (decompError) {
+              console.error("decodePDFRawStream failed", decompError);
+            }
+          } else {
+            rawXmp = new TextDecoder('utf-8').decode(contents);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("pdf-lib metadata extraction failed, trying raw text scan fallback", e);
+    }
+
+    if (!rawXmp) {
+      try {
+        const text = new TextDecoder().decode(new Uint8Array(fileBufferCopy));
+        const start = text.indexOf('<x:xmpmeta');
+        const end = text.indexOf('</x:xmpmeta>');
+        if (start !== -1 && end !== -1) {
+          rawXmp = text.slice(start, end + 12);
+        }
+      } catch (e) {
+        console.warn("Buffer decoding failed", e);
+      }
+    }
+
+    if (rawXmp) {
+      const jsonLdMatch = rawXmp.match(/<tradedocs:jsonld>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/tradedocs:jsonld>/);
+      if (jsonLdMatch && jsonLdMatch[1]) {
+        jsonLdString = jsonLdMatch[1].trim();
+      } else {
+        const simpleMatch = rawXmp.match(/<tradedocs:jsonld>([\s\S]*?)<\/tradedocs:jsonld>/);
+        if (simpleMatch && simpleMatch[1]) {
+          jsonLdString = simpleMatch[1].trim();
+        }
+      }
+      const layoutMatch = rawXmp.match(/<tradedocs:layoutId>(.*?)<\/tradedocs:layoutId>/);
+      if (layoutMatch && layoutMatch[1]) {
+        layoutId = layoutMatch[1].trim();
+      }
+    }
+  }
+  
+  if (!jsonLdString) {
+      throw new Error("No trade document metadata found. Ensure the document was exported with TradeDocs metadata or attachments.");
   }
   
   try {
-    const attachment = attachments[jsonFileName];
-    const decoder = new TextDecoder();
-    const jsonLdString = decoder.decode(attachment.content);
-
-    if (!jsonLdString) {
-      throw new Error("The attached JSON-LD file is empty.");
-    }
-
     const parsed = JSON.parse(jsonLdString);
-    const invoice = jsonLdToInvoice(parsed);
+    const documentType = parsed.typeCode === '271' ? 'packing_list' : 'invoice';
+    
+    let doc: TradeDocument;
+    if (documentType === 'invoice') {
+      doc = { type: 'invoice', data: jsonLdToInvoice(parsed) };
+    } else {
+      doc = { type: 'packing_list', data: jsonLdToPackingList(parsed) };
+    }
 
     let isTampered = false;
     let hasVerification = false;
 
     if (parsed.verificationHash && parsed.verificationTimestamp) {
        hasVerification = true;
-       const invoiceJson = stringify({ ...invoice, timestamp: parsed.verificationTimestamp });
-       const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(invoiceJson));
+       const docJson = stringify({ ...doc.data, timestamp: parsed.verificationTimestamp });
+       const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(docJson));
        const hashArray = Array.from(new Uint8Array(hashBuffer));
        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
        
@@ -172,11 +348,18 @@ export async function extractInvoiceDataFromPdf(fileBuffer: ArrayBuffer): Promis
        }
     }
 
-    return { invoice, layoutId, isTampered, hasVerification };
+    return {
+      document: doc,
+      layoutId,
+      isTampered,
+      hasVerification,
+      verificationHash: parsed.verificationHash,
+      verificationTimestamp: parsed.verificationTimestamp,
+    };
   } catch (error) {
     if (error instanceof SyntaxError) {
       throw new Error("The embedded JSON-LD metadata is malformed and could not be parsed.");
     }
-    throw new Error(`Failed to extract invoice data: ${(error as Error).message}`);
+    throw new Error(`Failed to extract trade document data: ${(error as Error).message}`);
   }
 }

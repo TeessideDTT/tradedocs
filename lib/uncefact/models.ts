@@ -25,7 +25,7 @@ export interface InvoiceLine {
 export interface Invoice {
   id: string;
   issueDate: Date;
-  typeCode: string; // 380 for Commercial Invoice
+  typeCode: '380';
   currency: string; // ISO 4217
   
   seller: Party;
@@ -41,12 +41,37 @@ export interface Invoice {
   };
 }
 
+export interface PackingListLine {
+  id: string;
+  name: string;
+  quantity: number;
+  unitCode: string; // e.g., C62 for pieces, H87 for hours
+  hsCode?: string; // Harmonized System Code for cross-border trade
+}
+
+export interface PackingList {
+  id: string;
+  issueDate: Date;
+  typeCode: '271';
+  invoiceId?: string; // Standard key referencing commercial invoice
+  
+  seller: Party;
+  buyer: Party;
+  
+  lines: PackingListLine[];
+}
+
+export type TradeDocument = 
+  | { type: 'invoice'; data: Invoice }
+  | { type: 'packing_list'; data: PackingList };
+
 export interface CustomTemplate {
   id: string;
   name: string;
   createdAt: number;
   layoutId: string;
-  invoiceData: Partial<Invoice>; // Store partial data, we will re-hydrate dates on load
+  documentType: 'invoice' | 'packing_list';
+  documentData: Partial<Invoice> | Partial<PackingList>; // Store partial data, we will re-hydrate dates on load
 }
 
 export const DEFAULT_INVOICE: Invoice = {
@@ -91,4 +116,38 @@ export const DEFAULT_INVOICE: Invoice = {
     grandTotalAmount: 119,
     duePayableAmount: 119,
   },
+};
+
+export const DEFAULT_PACKING_LIST: PackingList = {
+  id: 'PL-001',
+  issueDate: new Date(),
+  typeCode: '271',
+  invoiceId: '',
+  seller: {
+    name: 'Seller Name',
+    address: {
+      street: 'Seller Street',
+      city: 'Seller City',
+      postcode: '12345',
+      countryCode: 'DE',
+    },
+  },
+  buyer: {
+    name: 'Buyer Name',
+    address: {
+      street: 'Buyer Street',
+      city: 'Buyer City',
+      postcode: '67890',
+      countryCode: 'FR',
+    },
+  },
+  lines: [
+    {
+      id: '1',
+      name: 'Item 1',
+      quantity: 1,
+      unitCode: 'C62',
+      hsCode: '8517.62',
+    },
+  ],
 };

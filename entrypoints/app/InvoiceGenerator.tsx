@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { LAYOUTS, UK_LAYOUT } from '@/lib/uncefact/layout';
-import { DEFAULT_INVOICE, Invoice } from '@/lib/uncefact/models';
+import { DEFAULT_INVOICE, DEFAULT_PACKING_LIST, Invoice, PackingList, TradeDocument } from '@/lib/uncefact/models';
 import { generateInvoicePdf } from '@/lib/uncefact/pdf';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Download, Loader2, Edit2, Save, Bookmark, X } from 'lucide-react';
 import { storage } from '#imports';
 import { InvoiceForm } from './InvoiceForm';
@@ -13,7 +14,14 @@ import { InvoiceForm } from './InvoiceForm';
 export default function InvoiceGenerator() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { layoutId, importedData } = location.state || {};
+  const {
+    layoutId,
+    importedData,
+    hasVerification = false,
+    verificationHash,
+    verificationTimestamp,
+    isTemplate = false,
+  } = location.state || {};
   const selectedLayout = LAYOUTS.find(l => l.id === layoutId) || UK_LAYOUT;
   
   // Set default currency based on layout, fallback to EUR
@@ -28,71 +36,97 @@ export default function InvoiceGenerator() {
   const [isEditing, setIsEditing] = useState(false);
   const [dataWasEdited, setDataWasEdited] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
-  const [templateNameInput, setTemplateNameInput] = useState("");
+  
+  const [documentState, setDocumentState] = useState<TradeDocument>(() => {
+    // If we have imported data from a PDF or Custom Template, check if it's a packing list
+    const isPackList = importedData ? 
+      (importedData.typeCode === '271' || importedData.type === 'packing_list') : 
+      (location.state?.documentType === 'packing_list');
 
-  const [invoice, setInvoice] = useState<Invoice>(() => {
-    // If we have imported data from a PDF or Custom Template, merge it with defaults
-    if (importedData) {
+    if (isPackList) {
+      const pData = importedData ? (importedData.type === 'packing_list' ? importedData.data : importedData) : null;
       return {
+        type: 'packing_list',
+        data: {
+          ...DEFAULT_PACKING_LIST,
+          ...pData,
+          issueDate: pData?.issueDate ? new Date(pData.issueDate) : DEFAULT_PACKING_LIST.issueDate,
+          seller: {
+            ...DEFAULT_PACKING_LIST.seller,
+            ...(pData?.seller || {}),
+            address: {
+              ...DEFAULT_PACKING_LIST.seller.address,
+              ...(pData?.seller?.address || { countryCode: defaultCountry })
+            }
+          },
+          buyer: {
+            ...DEFAULT_PACKING_LIST.buyer,
+            ...(pData?.buyer || {}),
+            address: {
+              ...DEFAULT_PACKING_LIST.buyer.address,
+              ...(pData?.buyer?.address || { countryCode: defaultCountry })
+            }
+          },
+          lines: pData?.lines?.length ? pData.lines : DEFAULT_PACKING_LIST.lines,
+        }
+      };
+    }
+
+    const invData = importedData ? (importedData.type === 'invoice' ? importedData.data : importedData) : null;
+    return {
+      type: 'invoice',
+      data: {
         ...DEFAULT_INVOICE,
-        ...importedData,
-        // Re-hydrate dates if they came from JSON/local storage as strings
-        issueDate: importedData.issueDate ? new Date(importedData.issueDate) : DEFAULT_INVOICE.issueDate,
-        // Ensure nested objects merge correctly
+        ...invData,
+        issueDate: invData?.issueDate ? new Date(invData.issueDate) : DEFAULT_INVOICE.issueDate,
         seller: {
           ...DEFAULT_INVOICE.seller,
-          ...(importedData.seller || {}),
+          ...(invData?.seller || {}),
           address: {
             ...DEFAULT_INVOICE.seller.address,
-            ...(importedData.seller?.address || { countryCode: defaultCountry })
+            ...(invData?.seller?.address || { countryCode: defaultCountry })
           }
         },
         buyer: {
           ...DEFAULT_INVOICE.buyer,
-          ...(importedData.buyer || {}),
+          ...(invData?.buyer || {}),
           address: {
             ...DEFAULT_INVOICE.buyer.address,
-            ...(importedData.buyer?.address || { countryCode: defaultCountry })
+            ...(invData?.buyer?.address || { countryCode: defaultCountry })
           }
         },
-        lines: importedData.lines?.length ? importedData.lines : DEFAULT_INVOICE.lines,
-        totals: importedData.totals || DEFAULT_INVOICE.totals,
-      };
-    }
-
-    // Otherwise use standard defaults
-    return {
-      ...DEFAULT_INVOICE,
-      currency: defaultCurrency,
-      seller: { 
-        ...DEFAULT_INVOICE.seller, 
-        address: { ...(DEFAULT_INVOICE.seller.address || {}), countryCode: defaultCountry } 
-      },
-      buyer: { 
-        ...DEFAULT_INVOICE.buyer, 
-        address: { ...(DEFAULT_INVOICE.buyer.address || {}), countryCode: defaultCountry } 
+        lines: invData?.lines?.length ? invData.lines : DEFAULT_INVOICE.lines,
+        totals: invData?.totals || DEFAULT_INVOICE.totals,
       }
     };
   });
 
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
 
-  // Auto-calculate compliant totals whenever lines change
+  // Auto-calculate compliant totals whenever lines change (only for invoices)
   useEffect(() => {
-    const lineTotalAmount = invoice.lines.reduce((sum, line) => sum + (line.amount || 0), 0);
-    const taxTotalAmount = invoice.lines.reduce((sum, line) => sum + ((line.amount || 0) * (line.taxRate || 0) / 100), 0);
+    if (documentState.type !== 'invoice') return;
+    const inv = documentState.data;
+    const lineTotalAmount = inv.lines.reduce((sum, line) => sum + (line.amount || 0), 0);
+    const taxTotalAmount = inv.lines.reduce((sum, line) => sum + ((line.amount || 0) * (line.taxRate || 0) / 100), 0);
     const grandTotalAmount = lineTotalAmount + taxTotalAmount;
 
-    setInvoice(prev => ({
-      ...prev,
-      totals: {
-        lineTotalAmount,
-        taxTotalAmount,
-        grandTotalAmount,
-        duePayableAmount: grandTotalAmount,
-      }
-    }));
-  }, [invoice.lines]);
+    setDocumentState(prev => {
+      if (prev.type !== 'invoice') return prev;
+      return {
+        ...prev,
+        data: {
+          ...prev.data,
+          totals: {
+            lineTotalAmount,
+            taxTotalAmount,
+            grandTotalAmount,
+            duePayableAmount: grandTotalAmount,
+          }
+        }
+      };
+    });
+  }, [documentState.data.lines]);
 
   const handleSaveAsTemplate = async () => {
     if (!templateNameInput.trim()) return;
@@ -101,9 +135,12 @@ export default function InvoiceGenerator() {
       setIsSavingTemplate(true);
       
       // Serialize dates properly before saving
-      const serializableInvoice = {
-        ...invoice,
-        issueDate: invoice.issueDate.toISOString() // Store as ISO string
+      const serializableDoc = {
+        ...documentState,
+        data: {
+          ...documentState.data,
+          issueDate: documentState.data.issueDate.toISOString() // Store as ISO string
+        }
       };
 
       const existingTemplates: any[] = await storage.getItem('local:custom_templates') || [];
@@ -115,7 +152,9 @@ export default function InvoiceGenerator() {
         name: templateNameInput.trim(),
         createdAt: Date.now(),
         layoutId: selectedLayout.id,
-        invoiceData: serializableInvoice
+        documentType: documentState.type,
+        documentData: serializableDoc.data,
+        invoiceData: serializableDoc.data // Legacy support
       };
       updatedTemplates.push(newTemplate);
       
@@ -138,12 +177,18 @@ export default function InvoiceGenerator() {
   const handleDownloadPdf = async () => {
     try {
       setIsGenerating(true);
-      const pdfBytes = await generateInvoicePdf(invoice, selectedLayout, invoiceRef.current, dataWasEdited);
+      const pdfBytes = await generateInvoicePdf(documentState, selectedLayout, invoiceRef.current, {
+        wasEdited: dataWasEdited,
+        isTemplate,
+        hasExistingVerification: hasVerification,
+        existingVerificationHash: verificationHash,
+        existingVerificationTimestamp: verificationTimestamp,
+      });
       const blob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `invoice-${invoice.id}-${Date.now()}.pdf`;
+      link.download = `${documentState.type === 'packing_list' ? 'packing-list' : 'invoice'}-${documentState.data.id}-${Date.now()}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -155,6 +200,8 @@ export default function InvoiceGenerator() {
       setIsGenerating(false);
     }
   };
+
+  const [templateNameInput, setTemplateNameInput] = useState("");
 
   return (
     <div className="p-8 max-w-5xl mx-auto pb-24 relative">
@@ -188,50 +235,109 @@ export default function InvoiceGenerator() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-8">
+      {/* Top Header Row: Title, Doc Type Select, and Close Button */}
+      <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-100">
         <div>
-          <h1 className="text-2xl font-bold">UN/CEFACT Invoice Editor</h1>
+          <h1 className="text-2xl font-bold">UN/CEFACT Document Editor</h1>
           <p className="text-sm text-gray-500 mt-1">Edit compliant standard fields and layout.</p>
         </div>
-        <div className="flex gap-4 items-center">
-          {!isEditing && (
-            <Button variant="outline" onClick={() => setIsTemplateModalOpen(true)} disabled={isSavingTemplate}>
-              <Bookmark className="w-4 h-4 mr-2" /> Save Template
-            </Button>
+        <div className="flex items-center gap-4">
+          {/* Only show the type selector if we didn't land here via a specific template/preset document type */}
+          {(!layoutId && !(importedData && importedData.typeCode)) && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-500 uppercase">Document Type:</span>
+              <Select 
+                value={documentState.type === 'invoice' ? '380' : '271'} 
+                onValueChange={(value) => {
+                  setDocumentState(prev => {
+                    if (value === '271') {
+                      return {
+                        type: 'packing_list',
+                        data: {
+                          ...DEFAULT_PACKING_LIST,
+                          issueDate: new Date(),
+                          seller: {
+                            ...DEFAULT_PACKING_LIST.seller,
+                            address: { ...(DEFAULT_PACKING_LIST.seller.address || {}), countryCode: defaultCountry }
+                          },
+                          buyer: {
+                            ...DEFAULT_PACKING_LIST.buyer,
+                            address: { ...(DEFAULT_PACKING_LIST.buyer.address || {}), countryCode: defaultCountry }
+                          }
+                        }
+                      };
+                    } else {
+                      return {
+                        type: 'invoice',
+                        data: {
+                          ...DEFAULT_INVOICE,
+                          issueDate: new Date(),
+                          currency: defaultCurrency,
+                          seller: {
+                            ...DEFAULT_INVOICE.seller,
+                            address: { ...(DEFAULT_INVOICE.seller.address || {}), countryCode: defaultCountry }
+                          },
+                          buyer: {
+                            ...DEFAULT_INVOICE.buyer,
+                            address: { ...(DEFAULT_INVOICE.buyer.address || {}), countryCode: defaultCountry }
+                          }
+                        }
+                      };
+                    }
+                  });
+                }}
+              >
+                <SelectTrigger className="w-44 bg-white border-gray-200 h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="380">Commercial Invoice</SelectItem>
+                  <SelectItem value="271">Packing List</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           )}
-          <Button variant="outline" onClick={handleToggleEdit}>
-            {isEditing ? <><Save className="w-4 h-4 mr-2" /> Save Details</> : <><Edit2 className="w-4 h-4 mr-2" /> Edit Invoice</>}
-          </Button>
-          <Button onClick={handleDownloadPdf} disabled={isGenerating || isEditing}>
-            {isGenerating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</> : <><Download className="w-4 h-4 mr-2" /> Download PDF</>}
-          </Button>
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={() => {
-              // Smart navigation: go back if possible, otherwise dashboard
               if (window.history.length > 2) {
                 navigate(-1);
               } else {
                 navigate('/documents');
               }
             }} 
-            className="text-gray-500 hover:text-gray-900 ml-2"
+            className="text-gray-400 hover:text-gray-900 ml-2"
           >
             <X className="w-6 h-6" />
           </Button>
         </div>
       </div>
+
+      {/* Second Header Row: Actions */}
+      <div className="flex justify-end gap-3 mb-8">
+        {!isEditing && (
+          <Button variant="outline" onClick={() => setIsTemplateModalOpen(true)} disabled={isSavingTemplate}>
+            <Bookmark className="w-4 h-4 mr-2" /> Save Template
+          </Button>
+        )}
+        <Button variant="outline" onClick={handleToggleEdit}>
+          {isEditing ? <><Save className="w-4 h-4 mr-2" /> Save Details</> : <><Edit2 className="w-4 h-4 mr-2" /> Edit Document</>}
+        </Button>
+        <Button onClick={handleDownloadPdf} disabled={isGenerating || isEditing}>
+          {isGenerating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</> : <><Download className="w-4 h-4 mr-2" /> Download PDF</>}
+        </Button>
+      </div>
       
       <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-4">
         <div ref={invoiceRef} className={`bg-white p-4 sm:p-8 rounded-xl border border-gray-200 shadow-sm ${!isEditing ? 'w-fit min-w-full' : ''}`}>
           <InvoiceForm 
-            invoice={invoice} 
+            document={documentState} 
             layout={selectedLayout} 
             isEditing={isEditing} 
-            setInvoice={(val) => {
+            setDocument={(val) => {
               setDataWasEdited(true);
-              setInvoice(val);
+              setDocumentState(val);
             }} 
           />
         </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Bookmark, Trash2, Edit, Eye } from 'lucide-react';
+import { FileText, Bookmark, Trash2, Edit, Eye, LayoutGrid } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { LAYOUTS } from '@/lib/uncefact/layout';
 import { CustomTemplate } from '@/lib/uncefact/models';
@@ -47,21 +47,28 @@ export default function MyDocuments() {
       </div>
 
       {myTemplates.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {myTemplates.map((template) => {
             const layout = LAYOUTS.find(l => l.id === template.layoutId) || LAYOUTS[0];
+            const isPacking = (template as any).documentType === 'packing_list' || (template as any).invoiceData?.typeCode === '271';
             return (
               <Card key={template.id} className="hover:shadow-md transition-shadow relative">
-                <CardHeader>
+                <CardHeader className="p-4 pb-2">
                   <div className="flex justify-between items-start">
-                    <div className="w-10 h-10 rounded-lg bg-green-50 text-green-600 flex items-center justify-center mb-4">
-                      <Bookmark className="w-6 h-6" />
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isPacking ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                        <LayoutGrid className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm font-bold">{template.name}</CardTitle>
+                        <CardDescription className="text-[10px]">Saved on {new Date(template.createdAt).toLocaleDateString()}</CardDescription>
+                      </div>
                     </div>
                     <div className="flex gap-1">
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-8 w-8 text-gray-500 hover:text-green-600 hover:bg-green-50"
+                        className="h-7 w-7 text-gray-500 hover:text-green-600 hover:bg-green-50"
                         onClick={() => navigate('/editor', { 
                           state: { 
                             templateId: template.id,
@@ -70,12 +77,12 @@ export default function MyDocuments() {
                         })}
                         title="View Template"
                       >
-                        <Eye className="w-4 h-4" />
+                        <Eye className="w-3.5 h-3.5" />
                       </Button>
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-8 w-8 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                        className="h-7 w-7 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
                         onClick={() => navigate('/editor', { 
                           state: { 
                             templateId: template.id,
@@ -84,45 +91,52 @@ export default function MyDocuments() {
                         })}
                         title="Edit Template"
                       >
-                        <Edit className="w-4 h-4" />
+                        <Edit className="w-3.5 h-3.5" />
                       </Button>
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50" 
+                        className="h-7 w-7 text-gray-500 hover:text-red-600 hover:bg-red-50" 
                         onClick={() => setTemplateToDelete(template.id)}
                         title="Delete Template"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   </div>
-                  <CardTitle className="text-lg">{template.name}</CardTitle>
-                  <CardDescription className="text-xs">Saved on {new Date(template.createdAt).toLocaleDateString()}</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-sm space-y-1">
+                <CardContent className="p-4 py-2">
+                  <div className="text-xs space-y-1">
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Base Layout:</span>
-                      <span>{layout.name}</span>
+                      <span className="text-gray-400">Type:</span>
+                      <span className="font-semibold capitalize text-gray-700">{(template as any).documentType === 'packing_list' || (template as any).invoiceData?.typeCode === '271' ? 'Packing List' : 'Invoice'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Seller:</span>
-                      <span className="truncate ml-4">{template.invoiceData.seller?.name || 'N/A'}</span>
+                      <span className="text-gray-400">Base Layout:</span>
+                      <span className="text-gray-700">{layout.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Seller:</span>
+                      <span className="truncate ml-4 text-gray-700">{((template as any).documentData || (template as any).invoiceData)?.seller?.name || 'N/A'}</span>
                     </div>
                   </div>
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="p-4 pt-2">
                   <Button 
-                    className="w-full" 
+                    variant="secondary"
+                    size="sm"
+                    className="w-full h-8 text-xs font-semibold text-slate-900 bg-slate-200 hover:bg-slate-300 border border-slate-300" 
                     onClick={() => navigate('/generator', { 
                       state: { 
                         layoutId: template.layoutId, 
-                        importedData: template.invoiceData
+                        importedData: (template as any).documentData || (template as any).invoiceData,
+                        documentType: (template as any).documentType || ((template as any).invoiceData?.typeCode === '271' ? 'packing_list' : 'invoice'),
+                        isTemplate: true,
+                        hasVerification: false,
                       } 
                     })}
                   >
-                    Create Invoice
+                    Create {(template as any).documentType === 'packing_list' || (template as any).invoiceData?.typeCode === '271' ? 'Packing List' : 'Invoice'}
                   </Button>
                 </CardFooter>
               </Card>

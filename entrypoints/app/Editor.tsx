@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Invoice } from '@/lib/uncefact/models';
+import { Invoice, TradeDocument } from '@/lib/uncefact/models';
 import { Button } from '@/components/ui/button';
 import { Save, Edit2, X, Loader2 } from 'lucide-react';
 import { storage } from '#imports';
@@ -20,7 +20,7 @@ export default function Editor() {
   const [templateName, setTemplateName] = useState("");
   const [layoutId, setLayoutId] = useState("");
   
-  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [documentState, setDocumentState] = useState<TradeDocument | null>(null);
 
   const selectedLayout = LAYOUTS.find(l => l.id === layoutId) || UK_LAYOUT;
 
@@ -35,12 +35,17 @@ export default function Editor() {
         const templates: any[] = await storage.getItem('local:custom_templates') || [];
         const template = templates.find(t => t.id === templateId);
         
-        if (template && template.invoiceData) {
+        if (template) {
+          const documentType = template.documentType || (template.invoiceData?.typeCode === '271' ? 'packing_list' : 'invoice');
+          const documentData = template.documentData || template.invoiceData;
           setTemplateName(template.name);
           setLayoutId(template.layoutId);
-          setInvoice({
-            ...template.invoiceData,
-            issueDate: new Date(template.invoiceData.issueDate)
+          setDocumentState({
+            type: documentType,
+            data: {
+              ...documentData,
+              issueDate: new Date(documentData.issueDate)
+            }
           });
         } else {
           navigate('/documents');
@@ -56,38 +61,45 @@ export default function Editor() {
     loadTemplate();
   }, [templateId, navigate]);
 
-  // Auto-calculate compliant totals whenever lines change
+  // Auto-calculate compliant totals whenever lines change (only for invoices)
   useEffect(() => {
-    if (!invoice) return;
+    if (!documentState || documentState.type !== 'invoice') return;
     
-    const lineTotalAmount = invoice.lines.reduce((sum, line) => sum + (line.amount || 0), 0);
-    const taxTotalAmount = invoice.lines.reduce((sum, line) => sum + ((line.amount || 0) * (line.taxRate || 0) / 100), 0);
+    const inv = documentState.data;
+    const lineTotalAmount = inv.lines.reduce((sum, line) => sum + (line.amount || 0), 0);
+    const taxTotalAmount = inv.lines.reduce((sum, line) => sum + ((line.amount || 0) * (line.taxRate || 0) / 100), 0);
     const grandTotalAmount = lineTotalAmount + taxTotalAmount;
 
-    setInvoice(prev => {
-      if (!prev) return prev;
+    setDocumentState(prev => {
+      if (!prev || prev.type !== 'invoice') return prev;
       return {
         ...prev,
-        totals: {
-          lineTotalAmount,
-          taxTotalAmount,
-          grandTotalAmount,
-          duePayableAmount: grandTotalAmount,
+        data: {
+          ...prev.data,
+          totals: {
+            lineTotalAmount,
+            taxTotalAmount,
+            grandTotalAmount,
+            duePayableAmount: grandTotalAmount,
+          }
         }
       };
     });
-  }, [invoice?.lines]);
+  }, [documentState?.data.lines]);
 
   const handleSave = async () => {
-    if (!invoice || !templateId) return;
+    if (!documentState || !templateId) return;
 
     try {
       setIsSaving(true);
       
       // Serialize dates properly before saving
-      const serializableInvoice = {
-        ...invoice,
-        issueDate: invoice.issueDate.toISOString() // Store as ISO string
+      const serializableDoc = {
+        ...documentState,
+        data: {
+          ...documentState.data,
+          issueDate: documentState.data.issueDate.toISOString() // Store as ISO string
+        }
       };
 
       const existingTemplates: any[] = await storage.getItem('local:custom_templates') || [];
@@ -97,12 +109,13 @@ export default function Editor() {
       if (index !== -1) {
         updatedTemplates[index] = {
           ...updatedTemplates[index],
-          invoiceData: serializableInvoice,
+          documentType: serializableDoc.type,
+          documentData: serializableDoc.data,
+          invoiceData: serializableDoc.data, // Legacy support
           updatedAt: Date.now()
         };
         await storage.setItem('local:custom_templates', updatedTemplates);
         setIsEditing(false);
-        // Optional: show a success toast here
       }
     } catch (error) {
       console.error("Failed to save template:", error);
@@ -128,7 +141,7 @@ export default function Editor() {
     );
   }
 
-  if (!invoice) return null;
+  if (!documentState) return null;
 
   return (
     <div className="p-8 max-w-5xl mx-auto pb-24 relative">
@@ -160,7 +173,7 @@ export default function Editor() {
       
       <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-4">
         <div className={`bg-white p-4 sm:p-8 rounded-xl border border-gray-200 shadow-sm ${!isEditing ? 'w-fit min-w-full' : ''}`}>
-          <InvoiceForm invoice={invoice} layout={selectedLayout} isEditing={isEditing} setInvoice={setInvoice as React.Dispatch<React.SetStateAction<Invoice>>} />
+          <InvoiceForm document={documentState} layout={selectedLayout} isEditing={isEditing} setDocument={setDocumentState as React.Dispatch<React.SetStateAction<TradeDocument>>} />
         </div>
       </div>
     </div>

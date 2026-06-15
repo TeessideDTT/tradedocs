@@ -3,22 +3,93 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Search, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Loader2 } from 'lucide-react';
 import { LayoutProps } from './types';
 import { COUNTRIES, CURRENCIES } from '@/lib/uncefact/constants';
+import { Invoice, PackingList } from '@/lib/uncefact/models';
 
-export function MinimalLayout({ invoice, layout, isEditing, handlers }: LayoutProps) {
-  const { handlePartyChange, handleAddressChange, handleLineChange, handleLookup, lookupParty, isLookingUp, addLineItem, removeLineItem, setInvoice } = handlers;
+export function MinimalLayout({ document: doc, layout, isEditing, handlers }: LayoutProps) {
+  const { handlePartyChange, handleAddressChange, handleLineChange, handleLookup, lookupParty, isLookingUp, addLineItem, removeLineItem, setDocument } = handlers;
+
+  const isInvoice = doc.type === 'invoice';
+  const data = doc.data;
 
   return (
     <div className={`font-serif max-w-4xl mx-auto text-gray-800 ${isEditing ? 'p-4 sm:p-8 md:p-12' : 'p-12 min-w-[800px]'}`} style={{ fontFamily: layout.font.body }}>
+      {/* Document Settings (only when editing) */}
+      {isEditing && (
+        <div className="flex flex-wrap gap-4 justify-center bg-gray-50 p-4 rounded-lg border border-gray-100 text-sm mb-8 font-sans">
+          
+          {!isInvoice && (
+            <div className="flex items-center gap-2">
+              <Label className="text-xs uppercase text-gray-500">Invoice ID</Label>
+              <Input 
+                value={(data as PackingList).invoiceId || ''} 
+                onChange={e => {
+                  const val = e.target.value;
+                  setDocument((prev: any) => ({...prev, data: {...prev.data, invoiceId: val}}));
+                }} 
+                className="h-8 w-32 bg-white border-gray-200" 
+                placeholder="e.g. INV-9876"
+              />
+            </div>
+          )}
+
+          {isInvoice && (
+            <div className="flex items-center gap-2">
+              <Label className="text-xs uppercase text-gray-500">Currency</Label>
+              <Select 
+                value={(data as Invoice).currency} 
+                onValueChange={(value) => {
+                  setDocument((prev: any) => ({...prev, data: {...prev.data, currency: value}}));
+                }}
+              >
+                <SelectTrigger className="w-24 bg-white h-8 border-gray-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map(c => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <Label className="text-xs uppercase text-gray-500">ID</Label>
+            <Input 
+              value={data.id} 
+              onChange={e => {
+                const val = e.target.value;
+                setDocument((prev: any) => ({...prev, data: {...prev.data, id: val}}));
+              }} 
+              className="h-8 w-28 bg-white border-gray-200" 
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Label className="text-xs uppercase text-gray-500">Date</Label>
+            <Input 
+              type="date" 
+              value={data.issueDate.toISOString().split('T')[0]} 
+              onChange={e => {
+                const d = new Date(e.target.value);
+                if(!isNaN(d.getTime())) {
+                  setDocument((prev: any) => ({...prev, data: {...prev.data, issueDate: d}}));
+                }
+              }} 
+              className="h-8 w-36 bg-white border-gray-200" 
+            />
+          </div>
+        </div>
+      )}
+
       {/* Header - Centered & Minimal */}
       <div className="text-center mb-16 space-y-2">
         <h1 className="text-3xl tracking-widest uppercase font-light border-b border-gray-200 pb-4 inline-block px-12">
-           {layout.labels.invoiceTitle || 'INVOICE'}
+           {!isInvoice ? (layout.id === 'de-standard' ? 'LIEFERSCHEIN' : 'PACKING LIST') : (layout.labels.invoiceTitle || 'INVOICE')}
         </h1>
         <div className="text-sm text-gray-400 uppercase tracking-widest mt-2">
-           #{invoice.id} • {invoice.issueDate.toLocaleDateString()}
+           #{data.id} • {data.issueDate.toLocaleDateString()}{!isInvoice && (data as PackingList).invoiceId && ` • Invoice ID: ${(data as PackingList).invoiceId}`}
         </div>
       </div>
 
@@ -31,40 +102,40 @@ export function MinimalLayout({ invoice, layout, isEditing, handlers }: LayoutPr
                <div className="space-y-2 text-left sm:text-right">
                   <div className="flex gap-2 items-center justify-start sm:justify-end">
                     <div className="flex items-center gap-1">
-                      <input 
-                        type="checkbox" 
-                        id="seller-lookup-minimal" 
-                        className="w-3 h-3 rounded"
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            handleLookup('seller');
-                            e.target.checked = false;
-                          }
-                        }}
-                        disabled={isLookingUp}
-                      />
-                      <label htmlFor="seller-lookup-minimal" className="text-[10px] uppercase opacity-40 cursor-pointer flex items-center gap-1">
-                        {isLookingUp && lookupParty === 'seller' ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : null}
-                        Lookup
-                      </label>
+                       <input 
+                         type="checkbox" 
+                         id="seller-lookup-minimal" 
+                         className="w-3 h-3 rounded"
+                         onChange={(e) => {
+                           if (e.target.checked) {
+                             handleLookup('seller');
+                             e.target.checked = false;
+                           }
+                         }}
+                         disabled={isLookingUp}
+                       />
+                       <label htmlFor="seller-lookup-minimal" className="text-[10px] uppercase opacity-40 cursor-pointer flex items-center gap-1">
+                         {isLookingUp && lookupParty === 'seller' ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : null}
+                         Lookup
+                       </label>
                     </div>
                     <Input 
-                      value={invoice.seller.id || ''} 
+                      value={data.seller.id || ''} 
                       onChange={e => handlePartyChange('seller', 'id', e.target.value)} 
                       className="text-left sm:text-right border-gray-200 w-32 h-8" 
                       placeholder="ID" 
                     />
                   </div>
-                  <Input value={invoice.seller.name} onChange={e => handlePartyChange('seller', 'name', e.target.value)} className="text-left sm:text-right border-gray-200" placeholder="Seller Name" />
-                  <Input value={invoice.seller.address?.street || ''} onChange={e => handleAddressChange('seller', 'street', e.target.value)} className="text-left sm:text-right border-gray-200" placeholder="Street" />
-                  <Input value={invoice.seller.address?.city || ''} onChange={e => handleAddressChange('seller', 'city', e.target.value)} className="text-left sm:text-right border-gray-200" placeholder="City" />
+                  <Input value={data.seller.name} onChange={e => handlePartyChange('seller', 'name', e.target.value)} className="text-left sm:text-right border-gray-200" placeholder="Seller Name" />
+                  <Input value={data.seller.address?.street || ''} onChange={e => handleAddressChange('seller', 'street', e.target.value)} className="text-left sm:text-right border-gray-200" placeholder="Street" />
+                  <Input value={data.seller.address?.city || ''} onChange={e => handleAddressChange('seller', 'city', e.target.value)} className="text-left sm:text-right border-gray-200" placeholder="City" />
                </div>
             ) : (
                <div className="space-y-1">
-                  <div className="font-medium text-lg">{invoice.seller.name}</div>
-                  <div className="text-gray-500 font-light">{invoice.seller.address?.street}</div>
-                  <div className="text-gray-500 font-light">{invoice.seller.address?.city} {invoice.seller.address?.postcode}</div>
-                  <div className="text-gray-400 text-xs mt-2 uppercase">{invoice.seller.address?.countryCode}</div>
+                  <div className="font-medium text-lg">{data.seller.name}</div>
+                  <div className="text-gray-500 font-light">{data.seller.address?.street}</div>
+                  <div className="text-gray-500 font-light">{data.seller.address?.city} {data.seller.address?.postcode}</div>
+                  <div className="text-gray-400 text-xs mt-2 uppercase">{data.seller.address?.countryCode}</div>
                </div>
             )}
          </div>
@@ -76,40 +147,40 @@ export function MinimalLayout({ invoice, layout, isEditing, handlers }: LayoutPr
                <div className="space-y-2">
                   <div className="flex gap-2 items-center">
                     <Input 
-                      value={invoice.buyer.id || ''} 
+                      value={data.buyer.id || ''} 
                       onChange={e => handlePartyChange('buyer', 'id', e.target.value)} 
                       className="border-gray-200 w-32 h-8" 
                       placeholder="ID" 
                     />
                     <div className="flex items-center gap-1">
-                      <input 
-                        type="checkbox" 
-                        id="buyer-lookup-minimal" 
-                        className="w-3 h-3 rounded"
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            handleLookup('buyer');
-                            e.target.checked = false;
-                          }
-                        }}
-                        disabled={isLookingUp}
-                      />
-                      <label htmlFor="buyer-lookup-minimal" className="text-[10px] uppercase opacity-40 cursor-pointer flex items-center gap-1">
-                         {isLookingUp && lookupParty === 'buyer' ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : null}
-                         Lookup
-                      </label>
+                       <input 
+                         type="checkbox" 
+                         id="buyer-lookup-minimal" 
+                         className="w-3 h-3 rounded"
+                         onChange={(e) => {
+                           if (e.target.checked) {
+                             handleLookup('buyer');
+                             e.target.checked = false;
+                           }
+                         }}
+                         disabled={isLookingUp}
+                       />
+                       <label htmlFor="buyer-lookup-minimal" className="text-[10px] uppercase opacity-40 cursor-pointer flex items-center gap-1">
+                          {isLookingUp && lookupParty === 'buyer' ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : null}
+                          Lookup
+                       </label>
                     </div>
                   </div>
-                  <Input value={invoice.buyer.name} onChange={e => handlePartyChange('buyer', 'name', e.target.value)} className="border-gray-200" placeholder="Buyer Name" />
-                  <Input value={invoice.buyer.address?.street || ''} onChange={e => handleAddressChange('buyer', 'street', e.target.value)} className="border-gray-200" placeholder="Street" />
-                  <Input value={invoice.buyer.address?.city || ''} onChange={e => handleAddressChange('buyer', 'city', e.target.value)} className="border-gray-200" placeholder="City" />
+                  <Input value={data.buyer.name} onChange={e => handlePartyChange('buyer', 'name', e.target.value)} className="border-gray-200" placeholder="Buyer Name" />
+                  <Input value={data.buyer.address?.street || ''} onChange={e => handleAddressChange('buyer', 'street', e.target.value)} className="border-gray-200" placeholder="Street" />
+                  <Input value={data.buyer.address?.city || ''} onChange={e => handleAddressChange('buyer', 'city', e.target.value)} className="border-gray-200" placeholder="City" />
                </div>
             ) : (
                <div className="space-y-1">
-                  <div className="font-medium text-lg">{invoice.buyer.name}</div>
-                  <div className="text-gray-500 font-light">{invoice.buyer.address?.street}</div>
-                  <div className="text-gray-500 font-light">{invoice.buyer.address?.city} {invoice.buyer.address?.postcode}</div>
-                  <div className="text-gray-400 text-xs mt-2 uppercase">{invoice.buyer.address?.countryCode}</div>
+                  <div className="font-medium text-lg">{data.buyer.name}</div>
+                  <div className="text-gray-500 font-light">{data.buyer.address?.street}</div>
+                  <div className="text-gray-500 font-light">{data.buyer.address?.city} {data.buyer.address?.postcode}</div>
+                  <div className="text-gray-400 text-xs mt-2 uppercase">{data.buyer.address?.countryCode}</div>
                </div>
             )}
          </div>
@@ -122,13 +193,17 @@ export function MinimalLayout({ invoice, layout, isEditing, handlers }: LayoutPr
                <tr className="border-b border-gray-800">
                   <th className="py-4 text-left font-normal uppercase tracking-widest text-xs w-1/2">Item</th>
                   <th className="py-4 text-center font-normal uppercase tracking-widest text-xs">Qty</th>
-                  <th className="py-4 text-right font-normal uppercase tracking-widest text-xs">Price</th>
-                  <th className="py-4 text-right font-normal uppercase tracking-widest text-xs">Total</th>
+                  {isInvoice && (
+                    <>
+                      <th className="py-4 text-right font-normal uppercase tracking-widest text-xs">Price</th>
+                      <th className="py-4 text-right font-normal uppercase tracking-widest text-xs">Total</th>
+                    </>
+                  )}
                   {isEditing && <th className="w-10"></th>}
                </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-               {invoice.lines.map((line, index) => (
+               {data.lines.map((line, index) => (
                   <tr key={index}>
                      <td className="py-4">
                         {isEditing ? (
@@ -146,12 +221,16 @@ export function MinimalLayout({ invoice, layout, isEditing, handlers }: LayoutPr
                      <td className="py-4 text-center text-gray-500">
                         {isEditing ? <Input type="number" value={line.quantity} onChange={e => handleLineChange(index, 'quantity', e.target.value)} className="w-24 min-w-[80px] text-center mx-auto border-gray-200" /> : line.quantity}
                      </td>
-                     <td className="py-4 text-right text-gray-500">
-                        {isEditing ? <Input type="number" value={line.unitPrice} onChange={e => handleLineChange(index, 'unitPrice', e.target.value)} className="w-28 min-w-[100px] ml-auto text-right border-gray-200" /> : line.unitPrice.toFixed(2)}
-                     </td>
-                     <td className="py-4 text-right font-medium">
-                        {line.amount.toFixed(2)}
-                     </td>
+                     {isInvoice && (
+                       <>
+                          <td className="py-4 text-right text-gray-500">
+                             {isEditing ? <Input type="number" value={(line as any).unitPrice} onChange={e => handleLineChange(index, 'unitPrice', e.target.value)} className="w-28 min-w-[100px] ml-auto text-right border-gray-200" /> : (line as any).unitPrice.toFixed(2)}
+                          </td>
+                          <td className="py-4 text-right font-medium">
+                             {(line as any).amount.toFixed(2)}
+                          </td>
+                       </>
+                     )}
                      {isEditing && (
                         <td className="py-4 text-right">
                            <Button variant="ghost" size="icon" onClick={() => removeLineItem(index)} className="text-gray-400 hover:text-red-500">
@@ -177,20 +256,22 @@ export function MinimalLayout({ invoice, layout, isEditing, handlers }: LayoutPr
          <div className="text-sm text-gray-400 max-w-xs">
             Thank you for your business. Payment is due within 30 days.
          </div>
-         <div className={`text-right space-y-2 ${isEditing ? 'w-full sm:w-auto' : ''}`}>
-            <div className={`flex justify-between text-gray-500 ${isEditing ? 'w-full sm:w-64' : 'w-64'}`}>
-               <span>Subtotal</span>
-               <span>{invoice.totals.lineTotalAmount.toFixed(2)}</span>
-            </div>
-            <div className={`flex justify-between text-gray-500 ${isEditing ? 'w-full sm:w-64' : 'w-64'}`}>
-               <span>{layout.labels.tax || 'VAT'}</span>
-               <span>{invoice.totals.taxTotalAmount.toFixed(2)}</span>
-            </div>
-            <div className={`flex justify-between font-medium text-2xl text-gray-900 pt-4 mt-2 border-t border-gray-100 ${isEditing ? 'w-full sm:w-64' : 'w-64'}`}>
-               <span>Total</span>
-               <span>{invoice.currency} {invoice.totals.grandTotalAmount.toFixed(2)}</span>
-            </div>
-         </div>
+         {isInvoice && (
+           <div className={`text-right space-y-2 ${isEditing ? 'w-full sm:w-auto' : ''}`}>
+              <div className={`flex justify-between text-gray-500 ${isEditing ? 'w-full sm:w-64' : 'w-64'}`}>
+                 <span>Subtotal</span>
+                 <span>{(data as Invoice).totals.lineTotalAmount.toFixed(2)}</span>
+              </div>
+              <div className={`flex justify-between text-gray-500 ${isEditing ? 'w-full sm:w-64' : 'w-64'}`}>
+                 <span>{layout.labels.tax || 'VAT'}</span>
+                 <span>{(data as Invoice).totals.taxTotalAmount.toFixed(2)}</span>
+              </div>
+              <div className={`flex justify-between font-medium text-2xl text-gray-900 pt-4 mt-2 border-t border-gray-100 ${isEditing ? 'w-full sm:w-64' : 'w-64'}`}>
+                 <span>Total</span>
+                 <span>{(data as Invoice).currency} {(data as Invoice).totals.grandTotalAmount.toFixed(2)}</span>
+              </div>
+           </div>
+         )}
       </div>
     </div>
   );

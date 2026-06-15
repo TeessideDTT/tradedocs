@@ -1,7 +1,7 @@
-import { Invoice } from './models';
+import { Invoice, PackingList } from './models';
 import { format } from 'date-fns';
 
-export function generateCIIXML(invoice: Invoice): string {
+export function generateInvoiceXML(invoice: Invoice): string {
   const dateFormatted = format(invoice.issueDate, 'yyyyMMdd');
   
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -16,7 +16,7 @@ export function generateCIIXML(invoice: Invoice): string {
     </rsm:ExchangedDocumentContext>
     <rsm:ExchangedDocument>
         <ram:ID>${invoice.id}</ram:ID>
-        <ram:TypeCode>${invoice.typeCode}</ram:TypeCode>
+        <ram:TypeCode>380</ram:TypeCode>
         <ram:IssueDateTime>
             <a:DateTimeString format="102">${dateFormatted}</a:DateTimeString>
         </ram:IssueDateTime>
@@ -92,6 +92,80 @@ export function generateCIIXML(invoice: Invoice): string {
                 <ram:DuePayableAmount>${invoice.totals.duePayableAmount.toFixed(2)}</ram:DuePayableAmount>
             </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
         </ram:ApplicableHeaderTradeSettlement>
+    </rsm:SupplyChainTradeTransaction>
+</rsm:CrossIndustryInvoice>`;
+}
+
+export function generatePackingListXML(packingList: PackingList): string {
+  const dateFormatted = format(packingList.issueDate, 'yyyyMMdd');
+  
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rsm:CrossIndustryInvoice xmlns:a="urn:un:unece:uncefact:data:standard:QualifiedDataType:100"
+                          xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
+                          xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
+                          xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <rsm:ExchangedDocumentContext>
+        <ram:GuidelineSpecifiedDocumentContextParameter>
+            <ram:ID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</ram:ID>
+        </ram:GuidelineSpecifiedDocumentContextParameter>
+    </rsm:ExchangedDocumentContext>
+    <rsm:ExchangedDocument>
+        <ram:ID>${packingList.id}</ram:ID>
+        <ram:TypeCode>271</ram:TypeCode>
+        <ram:IssueDateTime>
+            <a:DateTimeString format="102">${dateFormatted}</a:DateTimeString>
+        </ram:IssueDateTime>
+    </rsm:ExchangedDocument>
+    <rsm:SupplyChainTradeTransaction>
+        ${packingList.lines.map(line => `
+        <ram:IncludedSupplyChainTradeLineItem>
+            <ram:AssociatedDocumentLineDocument>
+                <ram:LineID>${line.id}</ram:LineID>
+            </ram:AssociatedDocumentLineDocument>
+            <ram:SpecifiedTradeProduct>
+                <ram:Name>${line.name}</ram:Name>
+                ${line.hsCode ? `<ram:DesignatedProductClassification>
+                    <ram:ClassCode listID="HS">${line.hsCode}</ram:ClassCode>
+                </ram:DesignatedProductClassification>` : ''}
+            </ram:SpecifiedTradeProduct>
+            <ram:SpecifiedLineTradeDelivery>
+                <ram:BilledQuantity unitCode="${line.unitCode}">${line.quantity}</ram:BilledQuantity>
+            </ram:SpecifiedLineTradeDelivery>
+        </ram:IncludedSupplyChainTradeLineItem>`).join('')}
+        
+        <ram:ApplicableHeaderTradeAgreement>
+            <ram:SellerTradeParty>
+                <ram:Name>${packingList.seller.name}</ram:Name>
+                ${packingList.seller.taxId ? `<ram:SpecifiedTaxRegistration>
+                    <ram:ID schemeID="VA">${packingList.seller.taxId}</ram:ID>
+                </ram:SpecifiedTaxRegistration>` : ''}
+                <ram:PostalTradeAddress>
+                    <ram:PostcodeCode>${packingList.seller.address?.postcode}</ram:PostcodeCode>
+                    <ram:LineOne>${packingList.seller.address?.street}</ram:LineOne>
+                    <ram:CityName>${packingList.seller.address?.city}</ram:CityName>
+                    <ram:CountryID>${packingList.seller.address?.countryCode}</ram:CountryID>
+                </ram:PostalTradeAddress>
+            </ram:SellerTradeParty>
+            <ram:BuyerTradeParty>
+                <ram:Name>${packingList.buyer.name}</ram:Name>
+                ${packingList.buyer.taxId ? `<ram:SpecifiedTaxRegistration>
+                    <ram:ID schemeID="VA">${packingList.buyer.taxId}</ram:ID>
+                </ram:SpecifiedTaxRegistration>` : ''}
+                <ram:PostalTradeAddress>
+                    <ram:PostcodeCode>${packingList.buyer.address?.postcode}</ram:PostcodeCode>
+                    <ram:LineOne>${packingList.buyer.address?.street}</ram:LineOne>
+                    <ram:CityName>${packingList.buyer.address?.city}</ram:CityName>
+                    <ram:CountryID>${packingList.buyer.address?.countryCode}</ram:CountryID>
+                </ram:PostalTradeAddress>
+            </ram:BuyerTradeParty>
+            ${packingList.invoiceId ? `
+            <ram:AdditionalReferencedDocument>
+                <ram:IssuerAssignedID>${packingList.invoiceId}</ram:IssuerAssignedID>
+                <ram:TypeCode>380</ram:TypeCode>
+            </ram:AdditionalReferencedDocument>` : ''}
+        </ram:ApplicableHeaderTradeAgreement>
+        
+        <ram:ApplicableHeaderTradeDelivery/>
     </rsm:SupplyChainTradeTransaction>
 </rsm:CrossIndustryInvoice>`;
 }

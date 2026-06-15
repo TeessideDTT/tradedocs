@@ -5,10 +5,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, Search, Loader2 } from 'lucide-react';
 import { LayoutProps } from './types';
-import { COUNTRIES, CURRENCIES } from '@/lib/uncefact/constants';
+import { Invoice, PackingList } from '@/lib/uncefact/models';
+import { CURRENCIES } from '@/lib/uncefact/constants';
 
-export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutProps) {
-  const { handlePartyChange, handleAddressChange, handleLineChange, handleLookup, lookupParty, isLookingUp, addLineItem, removeLineItem, setInvoice } = handlers;
+export function ModernLayout({ document: doc, layout, isEditing, handlers }: LayoutProps) {
+  const { handlePartyChange, handleAddressChange, handleLineChange, handleLookup, lookupParty, isLookingUp, addLineItem, removeLineItem } = handlers;
+
+  const isInvoice = doc.type === 'invoice';
+  const data = doc.data;
 
   return (
     <div className={`font-sans min-h-[800px] flex flex-col ${!isEditing ? 'min-w-[800px]' : ''}`} style={{ fontFamily: layout.font.body }}>
@@ -16,10 +20,24 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
       <div className={`text-white rounded-t-xl ${isEditing ? 'p-4 sm:p-8' : 'p-8'}`} style={{ backgroundColor: layout.colors.primary }}>
         <div className={`flex justify-between items-start ${isEditing ? 'flex-col sm:flex-row gap-4 sm:gap-0' : 'flex-row gap-0'}`}>
           <div className="space-y-2">
-            <h1 className="text-4xl font-bold tracking-tight">{layout.labels.invoiceTitle || 'INVOICE'}</h1>
+            <h1 className="text-4xl font-bold tracking-tight">
+              {!isInvoice ? 'PACKING LIST' : (layout.labels.invoiceTitle || 'INVOICE')}
+            </h1>
             <div className="flex items-center gap-2 opacity-90">
-              <span className="text-sm uppercase font-semibold">#{invoice.id}</span>
-              {isEditing && <Input value={invoice.id} onChange={e => setInvoice(prev => ({...prev, id: e.target.value}))} className="h-6 w-32 bg-white/20 border-none text-white placeholder:text-white/50" />}
+              <span className="text-sm uppercase font-semibold">
+                {!isInvoice ? 'Slip #' : '#'}
+                {data.id}
+              </span>
+              {isEditing && (
+                <Input 
+                  value={data.id} 
+                  onChange={e => {
+                    const val = e.target.value;
+                    handlers.setDocument((prev: any) => ({ ...prev, data: { ...prev.data, id: val } }));
+                  }} 
+                  className="h-6 w-32 bg-white/20 border-none text-white placeholder:text-white/50" 
+                />
+              )}
             </div>
           </div>
           <div className="text-right space-y-1">
@@ -27,14 +45,16 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
              {isEditing ? (
                 <Input 
                   type="date" 
-                  value={invoice.issueDate.toISOString().split('T')[0]} 
+                  value={data.issueDate.toISOString().split('T')[0]} 
                   onChange={e => {
                     const d = new Date(e.target.value);
-                    if(!isNaN(d.getTime())) setInvoice(prev => ({...prev, issueDate: d}));
+                    if(!isNaN(d.getTime())) {
+                      handlers.setDocument((prev: any) => ({ ...prev, data: { ...prev.data, issueDate: d } }));
+                    }
                   }} 
                   className="h-8 bg-white/20 border-none text-white w-auto inline-block" 
                 />
-              ) : <div className="font-medium text-lg">{invoice.issueDate.toLocaleDateString()}</div>}
+              ) : <div className="font-medium text-lg">{data.issueDate.toLocaleDateString()}</div>}
           </div>
         </div>
 
@@ -46,7 +66,7 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
                   <div className="space-y-2">
                      <div className="flex gap-2 items-end">
                        <Input 
-                         value={invoice.seller.id || ''} 
+                         value={data.seller.id || ''} 
                          onChange={e => handlePartyChange('seller', 'id', e.target.value)} 
                          className="bg-white/10 border-none text-white placeholder:text-white/50 h-8 flex-1" 
                          placeholder="Company ID" 
@@ -70,34 +90,63 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
                          </label>
                        </div>
                      </div>
-                     <Input value={invoice.seller.name} onChange={e => handlePartyChange('seller', 'name', e.target.value)} className="bg-white/10 border-none text-white placeholder:text-white/50 h-8" placeholder="Seller Name" />
+                     <Input value={data.seller.name} onChange={e => handlePartyChange('seller', 'name', e.target.value)} className="bg-white/10 border-none text-white placeholder:text-white/50 h-8" placeholder="Seller Name" />
                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <Input value={invoice.seller.address?.street || ''} onChange={e => handleAddressChange('seller', 'street', e.target.value)} className="bg-white/10 border-none text-white h-8" placeholder="Street" />
-                        <Input value={invoice.seller.address?.city || ''} onChange={e => handleAddressChange('seller', 'city', e.target.value)} className="bg-white/10 border-none text-white h-8" placeholder="City" />
+                        <Input value={data.seller.address?.street || ''} onChange={e => handleAddressChange('seller', 'street', e.target.value)} className="bg-white/10 border-none text-white h-8" placeholder="Street" />
+                        <Input value={data.seller.address?.city || ''} onChange={e => handleAddressChange('seller', 'city', e.target.value)} className="bg-white/10 border-none text-white h-8" placeholder="City" />
                      </div>
                   </div>
               ) : (
                  <div>
-                    <div className="font-bold text-lg">{invoice.seller.name}</div>
-                    <div className="opacity-90">{invoice.seller.address?.street}, {invoice.seller.address?.city}</div>
-                    <div className="opacity-90">{invoice.seller.address?.postcode} {invoice.seller.address?.countryCode}</div>
+                    <div className="font-bold text-lg">{data.seller.name}</div>
+                    <div className="opacity-90">{data.seller.address?.street}, {data.seller.address?.city}</div>
+                    <div className="opacity-90">{data.seller.address?.postcode} {data.seller.address?.countryCode}</div>
                  </div>
               )}
            </div>
-           <div className={isEditing ? 'text-left sm:text-right' : 'text-right'}>
-              <div className="text-xs uppercase opacity-70 mb-1">Currency</div>
-              {isEditing ? (
-                 <div className="flex justify-start sm:justify-end">
-                    <Select value={invoice.currency} onValueChange={(value) => setInvoice(prev => ({...prev, currency: value}))}>
-                      <SelectTrigger className="w-32 bg-white/10 border-none text-white h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CURRENCIES.map(c => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                 </div>
-              ) : <div className="font-bold text-xl">{invoice.currency}</div>}
+            <div className={isEditing ? 'text-left sm:text-right space-y-3' : 'text-right'}>
+
+              {!isInvoice && (
+                <div>
+                  <div className="text-xs uppercase opacity-70 mb-1">Invoice ID</div>
+                  {isEditing ? (
+                    <div className="flex justify-start sm:justify-end">
+                      <Input 
+                        value={(data as PackingList).invoiceId || ''} 
+                        onChange={e => {
+                          const val = e.target.value;
+                          handlers.setDocument((prev: any) => ({ ...prev, data: { ...prev.data, invoiceId: val } }));
+                        }} 
+                        className="h-8 bg-white/10 border-none text-white w-32 placeholder:text-white/50 text-right"
+                        placeholder="INV-9876"
+                      />
+                    </div>
+                  ) : <div className="font-bold text-sm">{(data as PackingList).invoiceId || 'N/A'}</div>}
+                </div>
+              )}
+
+              {isInvoice && (
+                <div>
+                  <div className="text-xs uppercase opacity-70 mb-1">Currency</div>
+                  {isEditing ? (
+                     <div className="flex justify-start sm:justify-end">
+                        <Select 
+                          value={(data as Invoice).currency} 
+                          onValueChange={(value) => {
+                            handlers.setDocument((prev: any) => ({ ...prev, data: { ...prev.data, currency: value } }));
+                          }}
+                        >
+                          <SelectTrigger className="w-32 bg-white/10 border-none text-white h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CURRENCIES.map(c => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                     </div>
+                  ) : <div className="font-bold text-xl">{(data as Invoice).currency}</div>}
+                </div>
+              )}
            </div>
         </div>
       </div>
@@ -114,7 +163,7 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
                            <div className="flex-1">
                               <Label>Company ID</Label>
                               <Input 
-                                 value={invoice.buyer.id || ''} 
+                                 value={data.buyer.id || ''} 
                                  onChange={e => handlePartyChange('buyer', 'id', e.target.value)} 
                                  placeholder="gb/15863314"
                               />
@@ -138,29 +187,29 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
                            </div>
                         </div>
                         <Label>Company Name</Label>
-                        <Input value={invoice.buyer.name} onChange={e => handlePartyChange('buyer', 'name', e.target.value)} />
+                        <Input value={data.buyer.name} onChange={e => handlePartyChange('buyer', 'name', e.target.value)} />
                         <Label>Tax ID</Label>
-                        <Input value={invoice.buyer.taxId || ''} onChange={e => handlePartyChange('buyer', 'taxId', e.target.value)} />
+                        <Input value={data.buyer.taxId || ''} onChange={e => handlePartyChange('buyer', 'taxId', e.target.value)} />
                      </div>
                     <div className="space-y-2">
                        <Label>Address</Label>
-                       <Input value={invoice.buyer.address?.street || ''} onChange={e => handleAddressChange('buyer', 'street', e.target.value)} placeholder="Street" />
+                       <Input value={data.buyer.address?.street || ''} onChange={e => handleAddressChange('buyer', 'street', e.target.value)} placeholder="Street" />
                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <Input value={invoice.buyer.address?.city || ''} onChange={e => handleAddressChange('buyer', 'city', e.target.value)} placeholder="City" />
-                          <Input value={invoice.buyer.address?.postcode || ''} onChange={e => handleAddressChange('buyer', 'postcode', e.target.value)} placeholder="Postcode" />
+                          <Input value={data.buyer.address?.city || ''} onChange={e => handleAddressChange('buyer', 'city', e.target.value)} placeholder="City" />
+                          <Input value={data.buyer.address?.postcode || ''} onChange={e => handleAddressChange('buyer', 'postcode', e.target.value)} placeholder="Postcode" />
                        </div>
                     </div>
                  </div>
               ) : (
                  <div className="grid grid-cols-2">
                     <div>
-                       <div className="font-bold text-xl text-gray-900">{invoice.buyer.name}</div>
-                       <div className="text-gray-500 mt-1">{invoice.buyer.taxId && `Tax ID: ${invoice.buyer.taxId}`}</div>
+                       <div className="font-bold text-xl text-gray-900">{data.buyer.name}</div>
+                       <div className="text-gray-500 mt-1">{data.buyer.taxId && `Tax ID: ${data.buyer.taxId}`}</div>
                     </div>
                     <div className="text-right text-gray-600">
-                       <div>{invoice.buyer.address?.street}</div>
-                       <div>{invoice.buyer.address?.city}, {invoice.buyer.address?.postcode}</div>
-                       <div>{invoice.buyer.address?.countryCode}</div>
+                       <div>{data.buyer.address?.street}</div>
+                       <div>{data.buyer.address?.city}, {data.buyer.address?.postcode}</div>
+                       <div>{data.buyer.address?.countryCode}</div>
                     </div>
                  </div>
               )}
@@ -181,16 +230,20 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
            <div className="overflow-x-auto">
               <table className="w-full min-w-[800px]">
                  <thead>
-                 <tr className="border-b-2 border-gray-100 text-left">
-                    <th className="py-3 font-semibold text-gray-500 text-sm">Description</th>
-                    <th className="py-3 font-semibold text-gray-500 text-sm w-24 text-center">Qty</th>
-                    <th className="py-3 font-semibold text-gray-500 text-sm w-32 text-right">Price</th>
-                    <th className="py-3 font-semibold text-gray-500 text-sm w-32 text-right">Total</th>
-                    {isEditing && <th className="w-10"></th>}
-                 </tr>
+                  <tr className="border-b-2 border-gray-100 text-left">
+                     <th className="py-3 font-semibold text-gray-500 text-sm">Description</th>
+                     <th className="py-3 font-semibold text-gray-500 text-sm w-24 text-center">Qty</th>
+                     {isInvoice && (
+                       <>
+                         <th className="py-3 font-semibold text-gray-500 text-sm w-32 text-right">Price</th>
+                         <th className="py-3 font-semibold text-gray-500 text-sm w-32 text-right">Total</th>
+                       </>
+                     )}
+                     {isEditing && <th className="w-10"></th>}
+                  </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                 {invoice.lines.map((line, index) => (
+                 {data.lines.map((line: any, index: number) => (
                     <tr key={index}>
                        <td className="py-4">
                           {isEditing ? (
@@ -205,16 +258,20 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
                              </div>
                           )}
                        </td>
-                       <td className="py-4 text-center">
-                          {isEditing ? <Input type="number" value={line.quantity} onChange={e => handleLineChange(index, 'quantity', e.target.value)} className="w-24 min-w-[80px] text-center mx-auto" /> : <span className="text-gray-600">{line.quantity}</span>}
-                       </td>
-                       <td className="py-4 text-right">
-                          {isEditing ? <Input type="number" value={line.unitPrice} onChange={e => handleLineChange(index, 'unitPrice', e.target.value)} className="w-28 min-w-[100px] ml-auto text-right" /> : <span className="text-gray-600">{line.unitPrice.toFixed(2)}</span>}
-                       </td>
-                       <td className="py-4 text-right font-bold text-gray-900">
-                          {line.amount.toFixed(2)}
-                       </td>
-                       {isEditing && (
+                        <td className="py-4 text-center">
+                           {isEditing ? <Input type="number" value={line.quantity} onChange={e => handleLineChange(index, 'quantity', e.target.value)} className="w-24 min-w-[80px] text-center mx-auto" /> : <span className="text-gray-600">{line.quantity}</span>}
+                        </td>
+                        {isInvoice && (
+                          <>
+                            <td className="py-4 text-right">
+                               {isEditing ? <Input type="number" value={line.unitPrice} onChange={e => handleLineChange(index, 'unitPrice', e.target.value)} className="w-28 min-w-[100px] ml-auto text-right" /> : <span className="text-gray-600">{line.unitPrice.toFixed(2)}</span>}
+                            </td>
+                            <td className="py-4 text-right font-bold text-gray-900">
+                               {line.amount.toFixed(2)}
+                            </td>
+                          </>
+                        )}
+                        {isEditing && (
                           <td className="py-4 text-right">
                              <Button variant="ghost" size="icon" onClick={() => removeLineItem(index)} className="text-red-400 hover:text-red-600 hover:bg-red-50">
                                 <Trash2 className="w-4 h-4" />
@@ -229,22 +286,24 @@ export function ModernLayout({ invoice, layout, isEditing, handlers }: LayoutPro
         </div>
 
         {/* Totals */}
-        <div className="flex justify-end">
-           <div className={`space-y-3 ${isEditing ? 'w-full sm:w-80' : 'w-80'}`}>
-              <div className="flex justify-between text-gray-500">
-                 <span>Subtotal</span>
-                 <span>{invoice.totals.lineTotalAmount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-gray-500">
-                 <span>{layout.labels.tax || 'Tax'}</span>
-                 <span>{invoice.totals.taxTotalAmount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between items-center pt-4 border-t-2 border-gray-100">
-                 <span className="font-bold text-lg text-gray-900">Total</span>
-                 <span className="font-bold text-2xl" style={{ color: layout.colors.primary }}>{invoice.currency} {invoice.totals.grandTotalAmount.toFixed(2)}</span>
-              </div>
-           </div>
-        </div>
+        {isInvoice && (
+          <div className="flex justify-end">
+             <div className={`space-y-3 ${isEditing ? 'w-full sm:w-80' : 'w-80'}`}>
+                <div className="flex justify-between text-gray-500">
+                   <span>Subtotal</span>
+                   <span>{(data as Invoice).totals.lineTotalAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-gray-500">
+                   <span>{layout.labels.tax || 'Tax'}</span>
+                   <span>{(data as Invoice).totals.taxTotalAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center pt-4 border-t-2 border-gray-100">
+                   <span className="font-bold text-lg text-gray-900">Total</span>
+                   <span className="font-bold text-2xl" style={{ color: layout.colors.primary }}>{(data as Invoice).currency} {(data as Invoice).totals.grandTotalAmount.toFixed(2)}</span>
+                </div>
+             </div>
+          </div>
+        )}
       </div>
     </div>
   );
