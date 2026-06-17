@@ -1,0 +1,38 @@
+HOW TO INSTALL AND TEST THIS EXTENSION (FOR TESTERS)
+===================================================
+
+Thank you for agreeing to test this extension! Since this version is not yet published in the official Chrome Web Store, you will need to load it manually using Chrome's Developer Mode.
+
+Follow these simple steps to get started:
+
+STEP 1: Extract the Zip File
+----------------------------
+1. Download the zip file provided to you.
+2. Extract/unzip the file on your computer to a folder you will remember (for example, your Desktop or Documents folder).
+3. Ensure you see a folder containing files like `manifest.json`, folders like `assets`, etc.
+
+STEP 2: Enable Developer Mode in Google Chrome
+----------------------------------------------
+1. Open Google Chrome.
+2. In the address bar, type `chrome://extensions/` and press Enter. (Alternatively, click the three-dot menu at the top-right, go to "Extensions", and select "Manage Extensions").
+3. In the top-right corner of the Extensions page, find the switch labeled "Developer mode" and toggle it to ON.
+
+STEP 3: Load the Extension
+--------------------------
+1. Click the "Load unpacked" button that appeared in the top-left corner of the page.
+2. In the file picker that opens, navigate to the folder you extracted in STEP 1.
+3. Select the folder (the folder that immediately contains `manifest.json`) and click "Select" or "Open".
+4. You should now see the extension card in your list of active extensions!
+
+STEP 4: Pin the Extension for Easy Access
+-----------------------------------------
+1. Click the Puzzle Piece icon (Extensions menu) in the top-right corner of Chrome next to your profile picture.
+2. Find this extension in the list.
+3. Click the Pin icon next to it so it is always visible on your browser toolbar.
+
+Updating the Extension:
+-----------------------
+If you receive a new zip file in the future:
+1. Unzip the new files, replacing the contents of the old folder.
+2. Go back to `chrome://extensions/`.
+3. Locate this extension's card and click the reload icon (a circular arrow) in the bottom right of the card.
