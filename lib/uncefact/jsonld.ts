@@ -43,6 +43,7 @@ export function invoiceToJsonLd(invoice: Invoice, hash?: string, timestamp?: str
     },
     "referencesOrder": invoice.lines.map(line => ({
       "@type": "OrderItem",
+      "identifier": line.id,
       "orderedItem": {
         "@type": "Product",
         "name": line.name,
@@ -109,6 +110,7 @@ export function packingListToJsonLd(packingList: PackingList, hash?: string, tim
     },
     "referencesOrder": packingList.lines.map(line => ({
       "@type": "OrderItem",
+      "identifier": line.id,
       "orderedItem": {
         "@type": "Product",
         "name": line.name,
@@ -176,6 +178,7 @@ export function jsonLdToInvoice(parsed: any): Invoice {
     currency: parsed.currency || parsed.totalPaymentDue?.priceCurrency || 'EUR',
     typeCode: '380',
     seller: {
+      id: parsed.provider?.identifier || parsed.provider?.id || undefined,
       name: parsed.provider?.name || '',
       taxId: parsed.provider?.taxID || '',
       address: {
@@ -186,6 +189,7 @@ export function jsonLdToInvoice(parsed: any): Invoice {
       }
     },
     buyer: {
+      id: parsed.customer?.identifier || parsed.customer?.id || undefined,
       name: parsed.customer?.name || '',
       taxId: parsed.customer?.taxID || '',
       address: {
@@ -196,7 +200,7 @@ export function jsonLdToInvoice(parsed: any): Invoice {
       }
     },
     lines: (parsed.referencesOrder || []).map((item: any, i: number) => ({
-      id: item.id || `line-${i}`,
+      id: item.identifier || item.id || `line-${i}`,
       name: item.orderedItem?.name || '',
       hsCode: item.orderedItem?.identifier || '',
       unitCode: item.orderedItem?.unitCode || 'C62',
@@ -281,7 +285,7 @@ export function jsonLdToPackingList(parsed: any): PackingList {
       }
     },
     lines: (parsed.referencesOrder || []).map((item: any, i: number) => ({
-      id: item.id || `line-${i}`,
+      id: item.identifier || item.id || `line-${i}`,
       name: item.orderedItem?.name || '',
       hsCode: item.orderedItem?.identifier || '',
       unitCode: item.orderedItem?.unitCode || 'C62',

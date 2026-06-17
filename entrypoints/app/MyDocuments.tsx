@@ -131,7 +131,7 @@ export default function MyDocuments() {
                         layoutId: template.layoutId, 
                         importedData: (template as any).documentData || (template as any).invoiceData,
                         documentType: (template as any).documentType || ((template as any).invoiceData?.typeCode === '271' ? 'packing_list' : 'invoice'),
-                        isTemplate: true,
+                        isTemplate: false,
                         hasVerification: false,
                       } 
                     })}

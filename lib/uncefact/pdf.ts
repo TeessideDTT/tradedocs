@@ -14,7 +14,8 @@ function wrapCdata(value: string): string {
   return value.replaceAll(']]>', ']]]]><![CDATA[>');
 }
 
-function escapeXml(value: string): string {
+function escapeXml(value: string | undefined): string {
+  if (!value) return '';
   return value
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
@@ -25,18 +26,19 @@ function escapeXml(value: string): string {
 
 function buildVerificationXmpMetadata(
   jsonLdStr: string,
-  invoice: Invoice,
+  doc: TradeDocument,
   layoutId: string,
   hash?: string,
   timestamp?: string,
   ciiXmlStr?: string,
 ) {
   const metadataDate = new Date().toISOString();
-  const invoiceId = escapeXml(invoice.id);
-  const currency = escapeXml(invoice.currency);
+  const docId = escapeXml(doc.data.id);
+  const currency = doc.type === 'invoice' ? escapeXml((doc.data as Invoice).currency) : '';
   const safeLayoutId = escapeXml(layoutId);
   const safeHash = hash ? escapeXml(hash) : '';
   const safeTimestamp = timestamp ? escapeXml(timestamp) : '';
+  const title = doc.type === 'invoice' ? `Invoice ${docId}` : `Packing List ${docId}`;
 
   return `<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/">
@@ -52,11 +54,11 @@ function buildVerificationXmpMetadata(
       <dc:format>application/pdf</dc:format>
       <dc:title>
         <rdf:Alt>
-          <rdf:li xml:lang="x-default">Invoice ${invoiceId}</rdf:li>
+          <rdf:li xml:lang="x-default">${title}</rdf:li>
         </rdf:Alt>
       </dc:title>
-      <tradedocs:invoiceId>${invoiceId}</tradedocs:invoiceId>
-      <tradedocs:currency>${currency}</tradedocs:currency>
+      <tradedocs:invoiceId>${docId}</tradedocs:invoiceId>
+      ${currency ? `<tradedocs:currency>${currency}</tradedocs:currency>` : ''}
       <tradedocs:layoutId>${safeLayoutId}</tradedocs:layoutId>
       ${hash ? `<tradedocs:verificationHash>${safeHash}</tradedocs:verificationHash>` : ''}
       ${timestamp ? `<tradedocs:verificationTimestamp>${safeTimestamp}</tradedocs:verificationTimestamp>` : ''}
@@ -76,6 +78,33 @@ function setPdfXmpMetadata(pdfDoc: PDFDocument, xmpMetadata: string) {
   const metadataRef = pdfDoc.context.register(metadataStream);
   pdfDoc.catalog.set(PDFName.of('Metadata'), metadataRef);
 }
+
+function normalizeForHashing(val: any, parentKey?: string): any {
+  if (val === null || val === undefined) {
+    return undefined;
+  }
+  if (val instanceof Date) {
+    return val.toISOString();
+  }
+  if (Array.isArray(val)) {
+    return val.map(v => normalizeForHashing(v, parentKey)).filter(v => v !== undefined);
+  }
+  if (typeof val === 'object') {
+    const res: any = {};
+    for (const key of Object.keys(val)) {
+      if ((parentKey === 'buyer' || parentKey === 'seller') && key === 'id') {
+        continue;
+      }
+      const normalized = normalizeForHashing(val[key], key);
+      if (normalized !== undefined && normalized !== '') {
+        res[key] = normalized;
+      }
+    }
+    return res;
+  }
+  return val;
+}
+
 
 export async function generateInvoicePdf(
   doc: TradeDocument,
@@ -106,10 +135,14 @@ export async function generateInvoicePdf(
 
   if (shouldGenerateVerification) {
     timestamp = new Date().toISOString();
-    const docJson = stringify({ ...doc.data, timestamp });
+    const docJson = stringify({ ...normalizeForHashing(doc.data), timestamp });
     const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(docJson));
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    console.log("GENERATION DEBUG:");
+    console.log("Generated HashHex:", hashHex);
+    console.log("Serialized JSON being hashed during generation:", docJson);
   }
 
   if (elementToCapture) {
@@ -171,7 +204,7 @@ export async function generateInvoicePdf(
     const includeXmlInMeta = exportMode === 'metadata';
     const xmpMetadata = buildVerificationXmpMetadata(
       jsonLdStr,
-      doc.data as any,
+      doc,
       layout.id,
       hashHex,
       timestamp,
@@ -230,6 +263,7 @@ export async function extractInvoiceDataFromPdf(fileBuffer: ArrayBuffer): Promis
   let jsonLdString = '';
   let layoutId: string | undefined;
 
+  let attachmentJsonLd = '';
   // 1. Try to read from PDF/A-3 Attachments first
   let attachments;
   try {
@@ -243,7 +277,8 @@ export async function extractInvoiceDataFromPdf(fileBuffer: ArrayBuffer): Promis
     if (jsonFileName) {
       try {
         const attachment = attachments[jsonFileName];
-        jsonLdString = new TextDecoder().decode(attachment.content);
+        attachmentJsonLd = new TextDecoder().decode(attachment.content);
+        jsonLdString = attachmentJsonLd;
       } catch (e) {
         console.warn("Failed to decode JSON-LD attachment content", e);
       }
@@ -259,63 +294,73 @@ export async function extractInvoiceDataFromPdf(fileBuffer: ArrayBuffer): Promis
     }
   }
 
-  // 2. Fall back to parsing the XMP stream
-  if (!jsonLdString) {
-    let rawXmp = '';
-    try {
-      const pdfDoc = await PDFDocument.load(fileBufferCopy);
-      const catalog = pdfDoc.catalog;
-      const metadataRef = catalog.get(PDFName.of('Metadata'));
-      if (metadataRef) {
-        const stream = pdfDoc.context.lookup(metadataRef);
-        if (stream && typeof (stream as any).getContents === 'function') {
-          const contents = (stream as any).getContents();
-          const filter = (stream as any).dict?.get(PDFName.of('Filter'));
-          if (filter === PDFName.of('FlateDecode')) {
-            try {
-              const decodedStream = decodePDFRawStream(stream as any);
-              const bytes = (decodedStream as any).getBytes();
-              rawXmp = new TextDecoder('utf-8').decode(bytes);
-            } catch (decompError) {
-              console.error("decodePDFRawStream failed", decompError);
-            }
-          } else {
-            rawXmp = new TextDecoder('utf-8').decode(contents);
+  // 2. Read from XMP stream regardless to compare
+  let xmpJsonLd = '';
+  let rawXmp = '';
+  try {
+    const pdfDoc = await PDFDocument.load(fileBufferCopy);
+    const catalog = pdfDoc.catalog;
+    const metadataRef = catalog.get(PDFName.of('Metadata'));
+    if (metadataRef) {
+      const stream = pdfDoc.context.lookup(metadataRef);
+      if (stream && typeof (stream as any).getContents === 'function') {
+        const contents = (stream as any).getContents();
+        const filter = (stream as any).dict?.get(PDFName.of('Filter'));
+        if (filter === PDFName.of('FlateDecode')) {
+          try {
+            const decodedStream = decodePDFRawStream(stream as any);
+            const bytes = (decodedStream as any).getBytes();
+            rawXmp = new TextDecoder('utf-8').decode(bytes);
+          } catch (decompError) {
+            console.error("decodePDFRawStream failed", decompError);
           }
+        } else {
+          rawXmp = new TextDecoder('utf-8').decode(contents);
         }
+      }
+    }
+  } catch (e) {
+    console.warn("pdf-lib metadata extraction failed, trying raw text scan fallback", e);
+  }
+
+  if (!rawXmp) {
+    try {
+      const text = new TextDecoder().decode(new Uint8Array(fileBufferCopy));
+      const start = text.indexOf('<x:xmpmeta');
+      const end = text.indexOf('</x:xmpmeta>');
+      if (start !== -1 && end !== -1) {
+        rawXmp = text.slice(start, end + 12);
       }
     } catch (e) {
-      console.warn("pdf-lib metadata extraction failed, trying raw text scan fallback", e);
+      console.warn("Buffer decoding failed", e);
     }
+  }
 
-    if (!rawXmp) {
-      try {
-        const text = new TextDecoder().decode(new Uint8Array(fileBufferCopy));
-        const start = text.indexOf('<x:xmpmeta');
-        const end = text.indexOf('</x:xmpmeta>');
-        if (start !== -1 && end !== -1) {
-          rawXmp = text.slice(start, end + 12);
-        }
-      } catch (e) {
-        console.warn("Buffer decoding failed", e);
+  if (rawXmp) {
+    const jsonLdMatch = rawXmp.match(/<tradedocs:jsonld>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/tradedocs:jsonld>/);
+    if (jsonLdMatch && jsonLdMatch[1]) {
+      xmpJsonLd = jsonLdMatch[1].trim();
+    } else {
+      const simpleMatch = rawXmp.match(/<tradedocs:jsonld>([\s\S]*?)<\/tradedocs:jsonld>/);
+      if (simpleMatch && simpleMatch[1]) {
+        xmpJsonLd = simpleMatch[1].trim();
       }
     }
-
-    if (rawXmp) {
-      const jsonLdMatch = rawXmp.match(/<tradedocs:jsonld>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/tradedocs:jsonld>/);
-      if (jsonLdMatch && jsonLdMatch[1]) {
-        jsonLdString = jsonLdMatch[1].trim();
-      } else {
-        const simpleMatch = rawXmp.match(/<tradedocs:jsonld>([\s\S]*?)<\/tradedocs:jsonld>/);
-        if (simpleMatch && simpleMatch[1]) {
-          jsonLdString = simpleMatch[1].trim();
-        }
-      }
+    if (!layoutId) {
       const layoutMatch = rawXmp.match(/<tradedocs:layoutId>(.*?)<\/tradedocs:layoutId>/);
       if (layoutMatch && layoutMatch[1]) {
         layoutId = layoutMatch[1].trim();
       }
     }
+  }
+
+  console.log("COMPARISON DEBUG:");
+  console.log("Attachment JSON-LD string:", JSON.stringify(attachmentJsonLd));
+  console.log("XMP JSON-LD string:", JSON.stringify(xmpJsonLd));
+  console.log("Are they equal?:", attachmentJsonLd === xmpJsonLd);
+
+  if (!jsonLdString) {
+    jsonLdString = xmpJsonLd;
   }
   
   if (!jsonLdString) {
@@ -338,10 +383,15 @@ export async function extractInvoiceDataFromPdf(fileBuffer: ArrayBuffer): Promis
 
     if (parsed.verificationHash && parsed.verificationTimestamp) {
        hasVerification = true;
-       const docJson = stringify({ ...doc.data, timestamp: parsed.verificationTimestamp });
+       const docJson = stringify({ ...normalizeForHashing(doc.data), timestamp: parsed.verificationTimestamp });
        const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(docJson));
        const hashArray = Array.from(new Uint8Array(hashBuffer));
        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+       
+       console.log("VERIFICATION DEBUG:");
+       console.log("Parsed Verification Hash from PDF:", parsed.verificationHash);
+       console.log("Calculated Hash:", hashHex);
+       console.log("Serialized JSON being hashed:", docJson);
        
        if (hashHex !== parsed.verificationHash) {
           isTampered = true;
