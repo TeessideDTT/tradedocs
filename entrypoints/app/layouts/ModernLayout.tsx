@@ -69,7 +69,7 @@ export function ModernLayout({ document: doc, layout, isEditing, handlers }: Lay
                               value={data.seller.id || ''}
                               onChange={e => handlePartyChange('seller', 'id', e.target.value)}
                               className="bg-white/10 border-none text-white placeholder:text-white/50 h-8 flex-1"
-                              placeholder="Company ID"
+                              placeholder={`e.g. ${DEFAULT_IDS.seller}`}
                            />
                            <div className="flex items-center gap-1 mb-1">
                               <input
@@ -165,7 +165,7 @@ export function ModernLayout({ document: doc, layout, isEditing, handlers }: Lay
                                  <Input
                                     value={data.buyer.id || ''}
                                     onChange={e => handlePartyChange('buyer', 'id', e.target.value)}
-                                    placeholder="gb/15863314"
+                                    placeholder={`e.g. ${DEFAULT_IDS.buyer}`}
                                  />
                               </div>
                               <div className="flex items-center space-x-2 pb-2">

@@ -123,7 +123,7 @@ export function MinimalLayout({ document: doc, layout, isEditing, handlers }: La
                            value={data.seller.id || ''}
                            onChange={e => handlePartyChange('seller', 'id', e.target.value)}
                            className="text-left sm:text-right border-gray-200 w-32 h-8"
-                           placeholder="ID"
+                           placeholder={`e.g. ${DEFAULT_IDS.seller}`}
                         />
                      </div>
                      <Input value={data.seller.name} onChange={e => handlePartyChange('seller', 'name', e.target.value)} className="text-left sm:text-right border-gray-200" placeholder="Seller Name" />
@@ -150,7 +150,7 @@ export function MinimalLayout({ document: doc, layout, isEditing, handlers }: La
                            value={data.buyer.id || ''}
                            onChange={e => handlePartyChange('buyer', 'id', e.target.value)}
                            className="border-gray-200 w-32 h-8"
-                           placeholder="ID"
+                           placeholder={`e.g. ${DEFAULT_IDS.buyer}`}
                         />
                         <div className="flex items-center gap-1">
                            <input

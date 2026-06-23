@@ -101,7 +101,7 @@ export function StandardLayout({ document: doc, layout, isEditing, handlers }: L
                   <Input
                     value={data.seller.id || ''}
                     onChange={e => handlePartyChange('seller', 'id', e.target.value)}
-                    placeholder="e.g. gb/15863314"
+                    placeholder={`e.g. ${DEFAULT_IDS.seller}`}
                     className="mt-1"
                   />
                 </div>
@@ -177,7 +177,7 @@ export function StandardLayout({ document: doc, layout, isEditing, handlers }: L
                   <Input
                     value={data.buyer.id || ''}
                     onChange={e => handlePartyChange('buyer', 'id', e.target.value)}
-                    placeholder="e.g. gb/15863314"
+                    placeholder={`e.g. ${DEFAULT_IDS.buyer}`}
                     className="mt-1"
                   />
                 </div>
