@@ -8,7 +8,7 @@ export default defineConfig({
     plugins: [tailwindcss()],
   }),
   manifest: {
-    version: '0.0.1',
+    version: '0.0.2',
     permissions: ['sidePanel', 'storage'],
     name: 'TDO Builder',
     description: 'Create UN/CEFACT compliant trade docs directly in your browser.',
