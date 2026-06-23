@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { LAYOUTS, UK_LAYOUT } from '@/lib/uncefact/layout';
-import { DEFAULT_INVOICE, DEFAULT_PACKING_LIST, Invoice, PackingList, TradeDocument } from '@/lib/uncefact/models';
+import { DEFAULT_INVOICE, DEFAULT_PACKING_LIST, TradeDocument } from '@/lib/uncefact/models';
 import { generateInvoicePdf } from '@/lib/uncefact/pdf';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Download, Loader2, Edit2, Save, Bookmark, X } from 'lucide-react';
 import { storage } from '#imports';
 import { InvoiceForm } from './InvoiceForm';
+import { DEFAULT_IDS } from '@/lib/uncefact/constants';
 
 export default function InvoiceGenerator() {
   const location = useLocation();
@@ -23,11 +24,11 @@ export default function InvoiceGenerator() {
     isTemplate = false,
   } = location.state || {};
   const selectedLayout = LAYOUTS.find(l => l.id === layoutId) || UK_LAYOUT;
-  
+
   // Set default currency based on layout, fallback to EUR
-  const defaultCurrency = selectedLayout.id === 'uk-standard' ? 'GBP' : 
-                          selectedLayout.id === 'us-corporate' ? 'USD' : 'EUR';
-                          
+  const defaultCurrency = selectedLayout.id === 'uk-standard' ? 'GBP' :
+    selectedLayout.id === 'us-corporate' ? 'USD' : 'EUR';
+
   // Set default country code based on layout
   const defaultCountry = selectedLayout.countryCode;
 
@@ -36,11 +37,11 @@ export default function InvoiceGenerator() {
   const [isEditing, setIsEditing] = useState(false);
   const [dataWasEdited, setDataWasEdited] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
-  
+
   const [documentState, setDocumentState] = useState<TradeDocument>(() => {
     // If we have imported data from a PDF or Custom Template, check if it's a packing list
-    const isPackList = importedData ? 
-      (importedData.typeCode === '271' || importedData.type === 'packing_list') : 
+    const isPackList = importedData ?
+      (importedData.typeCode === '271' || importedData.type === 'packing_list') :
       (location.state?.documentType === 'packing_list');
 
     if (isPackList) {
@@ -53,6 +54,7 @@ export default function InvoiceGenerator() {
           issueDate: pData?.issueDate ? new Date(pData.issueDate) : DEFAULT_PACKING_LIST.issueDate,
           seller: {
             ...DEFAULT_PACKING_LIST.seller,
+            id: pData?.seller?.id !== undefined ? pData.seller.id : DEFAULT_IDS.seller,
             ...(pData?.seller || {}),
             address: {
               ...DEFAULT_PACKING_LIST.seller.address,
@@ -61,6 +63,7 @@ export default function InvoiceGenerator() {
           },
           buyer: {
             ...DEFAULT_PACKING_LIST.buyer,
+            id: pData?.buyer?.id !== undefined ? pData.buyer.id : DEFAULT_IDS.buyer,
             ...(pData?.buyer || {}),
             address: {
               ...DEFAULT_PACKING_LIST.buyer.address,
@@ -81,6 +84,7 @@ export default function InvoiceGenerator() {
         issueDate: invData?.issueDate ? new Date(invData.issueDate) : DEFAULT_INVOICE.issueDate,
         seller: {
           ...DEFAULT_INVOICE.seller,
+          id: invData?.seller?.id !== undefined ? invData.seller.id : DEFAULT_IDS.seller,
           ...(invData?.seller || {}),
           address: {
             ...DEFAULT_INVOICE.seller.address,
@@ -89,6 +93,7 @@ export default function InvoiceGenerator() {
         },
         buyer: {
           ...DEFAULT_INVOICE.buyer,
+          id: invData?.buyer?.id !== undefined ? invData.buyer.id : DEFAULT_IDS.buyer,
           ...(invData?.buyer || {}),
           address: {
             ...DEFAULT_INVOICE.buyer.address,
@@ -133,7 +138,7 @@ export default function InvoiceGenerator() {
 
     try {
       setIsSavingTemplate(true);
-      
+
       // Serialize dates properly before saving
       const serializableDoc = {
         ...documentState,
@@ -157,7 +162,7 @@ export default function InvoiceGenerator() {
         invoiceData: serializableDoc.data // Legacy support
       };
       updatedTemplates.push(newTemplate);
-      
+
       await storage.setItem('local:custom_templates', updatedTemplates);
       setIsTemplateModalOpen(false);
       setIsEditing(false); // Exit edit mode
@@ -211,14 +216,14 @@ export default function InvoiceGenerator() {
           <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md">
             <h2 className="text-xl font-bold mb-2">Save as Template</h2>
             <p className="text-sm text-gray-500 mb-6">Give your template a name so you can easily reuse these details later.</p>
-            
+
             <div className="space-y-4 mb-6">
               <div>
                 <Label>Template Name</Label>
-                <Input 
-                  value={templateNameInput} 
-                  onChange={(e) => setTemplateNameInput(e.target.value)} 
-                  placeholder="e.g. Acme Corp UK" 
+                <Input
+                  value={templateNameInput}
+                  onChange={(e) => setTemplateNameInput(e.target.value)}
+                  placeholder="e.g. Acme Corp UK"
                   className="mt-1"
                   autoFocus
                 />
@@ -246,8 +251,8 @@ export default function InvoiceGenerator() {
           {(!layoutId && !(importedData && importedData.typeCode)) && (
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-gray-500 uppercase">Document Type:</span>
-              <Select 
-                value={documentState.type === 'invoice' ? '380' : '271'} 
+              <Select
+                value={documentState.type === 'invoice' ? '380' : '271'}
                 onValueChange={(value) => {
                   setDocumentState(prev => {
                     if (value === '271') {
@@ -258,10 +263,12 @@ export default function InvoiceGenerator() {
                           issueDate: new Date(),
                           seller: {
                             ...DEFAULT_PACKING_LIST.seller,
+                            id: DEFAULT_IDS.seller,
                             address: { ...(DEFAULT_PACKING_LIST.seller.address || {}), countryCode: defaultCountry }
                           },
                           buyer: {
                             ...DEFAULT_PACKING_LIST.buyer,
+                            id: DEFAULT_IDS.buyer,
                             address: { ...(DEFAULT_PACKING_LIST.buyer.address || {}), countryCode: defaultCountry }
                           }
                         }
@@ -275,10 +282,12 @@ export default function InvoiceGenerator() {
                           currency: defaultCurrency,
                           seller: {
                             ...DEFAULT_INVOICE.seller,
+                            id: DEFAULT_IDS.seller,
                             address: { ...(DEFAULT_INVOICE.seller.address || {}), countryCode: defaultCountry }
                           },
                           buyer: {
                             ...DEFAULT_INVOICE.buyer,
+                            id: DEFAULT_IDS.buyer,
                             address: { ...(DEFAULT_INVOICE.buyer.address || {}), countryCode: defaultCountry }
                           }
                         }
@@ -297,16 +306,16 @@ export default function InvoiceGenerator() {
               </Select>
             </div>
           )}
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => {
               if (window.history.length > 2) {
                 navigate(-1);
               } else {
                 navigate('/documents');
               }
-            }} 
+            }}
             className="text-gray-400 hover:text-gray-900 ml-2"
           >
             <X className="w-6 h-6" />
@@ -328,17 +337,17 @@ export default function InvoiceGenerator() {
           {isGenerating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</> : <><Download className="w-4 h-4 mr-2" /> Download PDF</>}
         </Button>
       </div>
-      
+
       <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-4">
         <div ref={invoiceRef} className={`bg-white p-4 sm:p-8 rounded-xl border border-gray-200 shadow-sm ${!isEditing ? 'w-fit min-w-full' : ''}`}>
-          <InvoiceForm 
-            document={documentState} 
-            layout={selectedLayout} 
-            isEditing={isEditing} 
+          <InvoiceForm
+            document={documentState}
+            layout={selectedLayout}
+            isEditing={isEditing}
             setDocument={(val) => {
               setDataWasEdited(true);
               setDocumentState(val);
-            }} 
+            }}
           />
         </div>
       </div>

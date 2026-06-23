@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, Trash2, Search, Loader2 } from 'lucide-react';
 import { LayoutProps } from './types';
 import { Invoice, PackingList } from '@/lib/uncefact/models';
-import { COUNTRIES, CURRENCIES } from '@/lib/uncefact/constants';
+import { COUNTRIES, CURRENCIES, DEFAULT_IDS } from '@/lib/uncefact/constants';
 
 export function StandardLayout({ document: doc, layout, isEditing, handlers }: LayoutProps) {
   const { handlePartyChange, handleAddressChange, handleLineChange, handleLookup, lookupParty, isLookingUp, addLineItem, removeLineItem } = handlers;
@@ -23,29 +23,29 @@ export function StandardLayout({ document: doc, layout, isEditing, handlers }: L
             {!isInvoice ? 'Packing List Number' : (layout.labels.invoiceTitle || 'Invoice Number')}
           </Label>
           {isEditing ? (
-            <Input 
-              value={data.id} 
+            <Input
+              value={data.id}
               onChange={e => {
                 const val = e.target.value;
                 handlers.setDocument((prev: any) => ({ ...prev, data: { ...prev.data, id: val } }));
-              }} 
-              className="mt-1 bg-white" 
+              }}
+              className="mt-1 bg-white"
             />
           ) : <p className="font-medium mt-1">{data.id}</p>}
         </div>
         <div>
           <Label className="text-gray-500 text-xs uppercase" style={{ color: layout.colors.text }}>{layout.labels.date || 'Issue Date'}</Label>
           {isEditing ? (
-            <Input 
-              type="date" 
-              value={data.issueDate.toISOString().split('T')[0]} 
+            <Input
+              type="date"
+              value={data.issueDate.toISOString().split('T')[0]}
               onChange={e => {
                 const d = new Date(e.target.value);
-                if(!isNaN(d.getTime())) {
+                if (!isNaN(d.getTime())) {
                   handlers.setDocument((prev: any) => ({ ...prev, data: { ...prev.data, issueDate: d } }));
                 }
-              }} 
-              className="mt-1 bg-white" 
+              }}
+              className="mt-1 bg-white"
             />
           ) : <p className="font-medium mt-1">{data.issueDate.toLocaleDateString()}</p>}
         </div>
@@ -53,8 +53,8 @@ export function StandardLayout({ document: doc, layout, isEditing, handlers }: L
           <div>
             <Label className="text-gray-500 text-xs uppercase" style={{ color: layout.colors.text }}>Currency</Label>
             {isEditing ? (
-              <Select 
-                value={(data as Invoice).currency} 
+              <Select
+                value={(data as Invoice).currency}
                 onValueChange={(value) => {
                   handlers.setDocument((prev: any) => ({ ...prev, data: { ...prev.data, currency: value } }));
                 }}
@@ -74,13 +74,13 @@ export function StandardLayout({ document: doc, layout, isEditing, handlers }: L
           <div>
             <Label className="text-gray-500 text-xs uppercase" style={{ color: layout.colors.text }}>Invoice ID</Label>
             {isEditing ? (
-              <Input 
-                value={(data as PackingList).invoiceId || ''} 
+              <Input
+                value={(data as PackingList).invoiceId || ''}
                 onChange={e => {
                   const val = e.target.value;
                   handlers.setDocument((prev: any) => ({ ...prev, data: { ...prev.data, invoiceId: val } }));
-                }} 
-                className="mt-1 bg-white" 
+                }}
+                className="mt-1 bg-white"
                 placeholder="e.g. INV-9876"
               />
             ) : <p className="font-medium mt-1">{(data as PackingList).invoiceId || 'N/A'}</p>}
@@ -98,26 +98,26 @@ export function StandardLayout({ document: doc, layout, isEditing, handlers }: L
               {isEditing && (
                 <div className="flex-1">
                   <Label className="text-gray-500 text-xs uppercase">Company ID (v-no)</Label>
-                  <Input 
-                    value={data.seller.id || ''} 
-                    onChange={e => handlePartyChange('seller', 'id', e.target.value)} 
+                  <Input
+                    value={data.seller.id || ''}
+                    onChange={e => handlePartyChange('seller', 'id', e.target.value)}
                     placeholder="e.g. gb/15863314"
-                    className="mt-1" 
+                    className="mt-1"
                   />
                 </div>
               )}
               {isEditing && (
                 <div className="flex items-center space-x-2 pb-2">
-                  <input 
-                    type="checkbox" 
-                    id="seller-lookup" 
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                  <input
+                    type="checkbox"
+                    id="seller-lookup"
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     onChange={(e) => {
                       if (e.target.checked) {
                         handleLookup('seller');
                         e.target.checked = false; // Reset after trigger
                       }
-                    }} 
+                    }}
                     disabled={isLookingUp}
                   />
                   <Label htmlFor="seller-lookup" className="text-xs cursor-pointer flex items-center gap-1">
@@ -174,26 +174,26 @@ export function StandardLayout({ document: doc, layout, isEditing, handlers }: L
               {isEditing && (
                 <div className="flex-1">
                   <Label className="text-gray-500 text-xs uppercase">Company ID (v-no)</Label>
-                  <Input 
-                    value={data.buyer.id || ''} 
-                    onChange={e => handlePartyChange('buyer', 'id', e.target.value)} 
+                  <Input
+                    value={data.buyer.id || ''}
+                    onChange={e => handlePartyChange('buyer', 'id', e.target.value)}
                     placeholder="e.g. gb/15863314"
-                    className="mt-1" 
+                    className="mt-1"
                   />
                 </div>
               )}
               {isEditing && (
                 <div className="flex items-center space-x-2 pb-2">
-                  <input 
-                    type="checkbox" 
-                    id="buyer-lookup" 
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                  <input
+                    type="checkbox"
+                    id="buyer-lookup"
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     onChange={(e) => {
                       if (e.target.checked) {
                         handleLookup('buyer');
                         e.target.checked = false; // Reset after trigger
                       }
-                    }} 
+                    }}
                     disabled={isLookingUp}
                   />
                   <Label htmlFor="buyer-lookup" className="text-xs cursor-pointer flex items-center gap-1">
@@ -253,7 +253,7 @@ export function StandardLayout({ document: doc, layout, isEditing, handlers }: L
             </Button>
           )}
         </div>
-        
+
         <div className="overflow-x-auto">
           <table className="w-full min-w-[800px] text-sm text-left">
             <thead className="text-xs uppercase" style={{ backgroundColor: layout.colors.secondary, color: layout.colors.text }}>

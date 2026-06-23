@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Bookmark, Trash2, Edit, Eye, LayoutGrid } from 'lucide-react';
+import { Bookmark, Trash2, Edit, Eye, LayoutGrid } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { LAYOUTS } from '@/lib/uncefact/layout';
 import { CustomTemplate } from '@/lib/uncefact/models';
@@ -65,38 +65,38 @@ export default function MyDocuments() {
                       </div>
                     </div>
                     <div className="flex gap-1">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-7 w-7 text-gray-500 hover:text-green-600 hover:bg-green-50"
-                        onClick={() => navigate('/editor', { 
-                          state: { 
+                        onClick={() => navigate('/editor', {
+                          state: {
                             templateId: template.id,
                             initialIsEditing: false
-                          } 
+                          }
                         })}
                         title="View Template"
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-7 w-7 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-                        onClick={() => navigate('/editor', { 
-                          state: { 
+                        onClick={() => navigate('/editor', {
+                          state: {
                             templateId: template.id,
                             initialIsEditing: true
-                          } 
+                          }
                         })}
                         title="Edit Template"
                       >
                         <Edit className="w-3.5 h-3.5" />
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-7 w-7 text-gray-500 hover:text-red-600 hover:bg-red-50" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-gray-500 hover:text-red-600 hover:bg-red-50"
                         onClick={() => setTemplateToDelete(template.id)}
                         title="Delete Template"
                       >
@@ -122,18 +122,18 @@ export default function MyDocuments() {
                   </div>
                 </CardContent>
                 <CardFooter className="p-4 pt-2">
-                  <Button 
+                  <Button
                     variant="secondary"
                     size="sm"
-                    className="w-full h-8 text-xs font-semibold text-slate-900 bg-slate-200 hover:bg-slate-300 border border-slate-300" 
-                    onClick={() => navigate('/generator', { 
-                      state: { 
-                        layoutId: template.layoutId, 
+                    className="w-full h-8 text-xs font-semibold text-slate-900 bg-slate-200 hover:bg-slate-300 border border-slate-300"
+                    onClick={() => navigate('/generator', {
+                      state: {
+                        layoutId: template.layoutId,
                         importedData: (template as any).documentData || (template as any).invoiceData,
                         documentType: (template as any).documentType || ((template as any).invoiceData?.typeCode === '271' ? 'packing_list' : 'invoice'),
                         isTemplate: false,
                         hasVerification: false,
-                      } 
+                      }
                     })}
                   >
                     Create {(template as any).documentType === 'packing_list' || (template as any).invoiceData?.typeCode === '271' ? 'Packing List' : 'Invoice'}
