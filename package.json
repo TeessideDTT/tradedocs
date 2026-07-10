@@ -2,6 +2,7 @@
   "name": "wxt-react-starter",
   "description": "manifest.json description",
   "private": true,
+  "license": "MIT",
   "version": "0.0.0",
   "type": "module",
   "scripts": {
@@ -11,6 +12,8 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
+    "test": "vitest",
+    "test:run": "vitest run",
     "compile": "tsc --noEmit",
     "postinstall": "wxt prepare"
   },
@@ -45,6 +48,7 @@
     "@types/react-router-dom": "^5.3.3",
     "@wxt-dev/module-react": "^1.1.5",
     "typescript": "^5.9.3",
+    "vitest": "^3.2.4",
     "wxt": "^0.20.20"
   }
 }

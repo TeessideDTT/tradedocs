@@ -151,62 +151,59 @@ The app can upload a compatible PDF, extract the embedded metadata, reconstruct 
 - `unpdf`
 - `qrcode`
 
-## Important Files
-
-- [wxt.config.ts](file:///Users/solmei/ChromeExtApps/tradedocs/wxt.config.ts): extension manifest and WXT configuration
-- [App.tsx](file:///Users/solmei/ChromeExtApps/tradedocs/entrypoints/app/App.tsx): main app routes and navigation
-- [Templates.tsx](file:///Users/solmei/ChromeExtApps/tradedocs/entrypoints/app/Templates.tsx): dashboard templates and PDF import
-- [InvoiceGenerator.tsx](file:///Users/solmei/ChromeExtApps/tradedocs/entrypoints/app/InvoiceGenerator.tsx): live document generation flow
-- [Editor.tsx](file:///Users/solmei/ChromeExtApps/tradedocs/entrypoints/app/Editor.tsx): template view/edit page
-- [MyDocuments.tsx](file:///Users/solmei/ChromeExtApps/tradedocs/entrypoints/app/MyDocuments.tsx): saved template management
-- [InvoiceForm.tsx](file:///Users/solmei/ChromeExtApps/tradedocs/entrypoints/app/InvoiceForm.tsx): shared form and layout switching
-- [pdf.ts](file:///Users/solmei/ChromeExtApps/tradedocs/lib/uncefact/pdf.ts): PDF generation, metadata embedding, import, and verification
-
 ## Development
 
 ### Install dependencies
 
-You can use your preferred package manager. The project currently exposes standard npm scripts.
+This project is currently set up to use `bun` and includes a `bun.lock` lockfile.
 
-```bash
-npm install
-```
+| Bun | npm |
+| --- | --- |
+| `bun install` | `npm install` |
+
+If you prefer `npm` or `pnpm`, remove `bun.lock` first and then install dependencies with your preferred package manager so it can generate its own lockfile.
 
 ### Start development
 
-Chrome:
-
-```bash
-npm run dev
-```
-
-Firefox:
-
-```bash
-npm run dev:firefox
-```
+| Task | Bun | npm |
+| --- | --- | --- |
+| Chrome dev | `bun run dev` | `npm run dev` |
+| Firefox dev | `bun run dev:firefox` | `npm run dev:firefox` |
 
 ### Type-check
 
-```bash
-npm run compile
-```
+| Bun | npm |
+| --- | --- |
+| `bun run compile` | `npm run compile` |
 
 ### Production build
 
-```bash
-npm run build
-```
+| Bun | npm |
+| --- | --- |
+| `bun run build` | `npm run build` |
 
 ### Create distributable archive
 
-```bash
-npm run zip
-```
+| Bun | npm |
+| --- | --- |
+| `bun run zip` | `npm run zip` |
+
+## Testing
+
+This project uses `Vitest` for unit tests.
+
+Available commands:
+
+- `bun run test` or `npm run test` to run tests in watch mode
+- `bun run test:run` or `npm run test:run` to run the unit test suite once
+- `bun run compile` or `npm run compile` to type-check the codebase
+- `bun run build` or `npm run build` to verify the extension still bundles correctly
+
+The current unit tests live under the `tests/` folder and focus on the core trade-document transformation layer, especially JSON-LD generation and parsing for invoices and packing lists.
 
 ## Load The Extension Manually
 
-1. Run `npm run build` or keep `npm run dev` running.
+1. Run `bun run build` or `npm run build`, or keep `bun run dev` / `npm run dev` running.
 2. Open `chrome://extensions/`.
 3. Enable developer mode.
 4. Click `Load unpacked`.
@@ -235,6 +232,10 @@ The current architecture is already prepared for:
 - Product name: `TDO Builder`
 - Description: `Create UN/CEFACT compliant trade docs directly in your browser.`
 
+## Credits
+
+Teesside University Digital Trade Testbed (DTT) team.
+
 ## License
 
-MIT
+This project is licensed under the MIT License.
